@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сдвиги графиков — Математическая лаборатория</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<style>
+  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .8em; line-height: 1.15; }
+  .frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 4px; }
+  .frac > span:last-child { padding: 0 4px; }
+  .sqrt { white-space: nowrap; }
+  .sqrt > span { border-top: 1.5px solid currentColor; padding: 0 3px; }
+  .formula sup { font-size: .62em; }
+  .challenge-status { font-size: 15px; min-height: 1.5em; }
+  .challenge-status.win { color: var(--good); font-weight: 700; }
+  svg text { font-family: var(--font); }
+  .keypt { cursor: grab; }
+  .keypt:active { cursor: grabbing; }
+</style>
+</head>
+<body>
+<header class="lab-header">
+  <a class="back" href="../../index.html">← Все тренажёры</a>
+  <h1>Сдвиги графиков</h1>
+  <p>Двигайте ползунки или тащите оранжевую точку — и смотрите, куда едет график.</p>
+</header>
+
+<main class="lab">
+  <section class="panel">
+    <div class="card">
+      <h2>Функция</h2>
+      <div class="chips" id="fchips" role="group" aria-label="Выбор функции"></div>
+    </div>
+
+    <div class="card" id="sliders">
+      <h2>Параметры</h2>
+    </div>
+
+    <div class="card">
+      <h2>Показать</h2>
+      <div class="toggles">
+        <label><input type="checkbox" id="tGhost" checked> исходный график</label>
+        <label><input type="checkbox" id="tArrows" checked> стрелки сдвига</label>
+        <label><input type="checkbox" id="tAsym" checked> асимптоты</label>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn" id="reset">Сбросить</button>
+        <button class="btn" id="copy">Скопировать ссылку</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Поймай график</h2>
+      <p style="margin:0 0 10px;font-size:14px;color:var(--muted)">Появится фиолетовый график. Подберите p и q, чтобы ваш график лёг точно на него.</p>
+      <div class="btn-row">
+        <button class="btn primary" id="newTarget">Новая цель</button>
+        <button class="btn" id="stopTarget" hidden>Закончить</button>
+      </div>
+      <div class="challenge-status" id="cstatus" style="margin-top:8px"></div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="card">
+      <div class="formula" id="formula" aria-live="polite"></div>
+      <div class="verdict" id="verdict"></div>
+      <svg class="plot" id="plot" viewBox="0 0 600 600" role="img" aria-label="График функции"></svg>
+      <div class="legend">
+        <span class="l-ghost" id="lgGhost"></span>
+        <span class="l-main" id="lgMain">новый график</span>
+        <span class="l-target" id="lgTarget" hidden>цель</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card tasks">
+      <h2>Задания</h2>
+      <ol>
+        <li>Выберите y = x². <b>Не трогая ползунки</b>, предскажите: где окажется вершина параболы y = (x − 3)² + 2? Теперь проверьте.
+        </li>
+        <li>Почему «плюс» в скобках сдвигает график <b>влево</b>, а не вправо? Поставьте p = 3 и найдите x, при котором выражение в скобках равно нулю.
+          <details><summary>Объяснение</summary>
+            График y = f(x + 3) в точке x принимает то значение, которое исходная функция принимала в точке x + 3, то есть на 3 правее. Всё, что раньше «случалось» в точке 0, теперь случается в точке −3: график приехал на 3 влево.
+          </details>
+        </li>
+        <li>Для y = x сдвиг влево на 2 и сдвиг вверх на 2 дают один и тот же график. Проверьте. Почему так? Получится ли такое для y = x²?
+          <details><summary>Объяснение</summary>
+            (x + 2) + 0 = x + 0 + 2: для прямой y = x оба сдвига дают y = x + 2. Прямая «скользит вдоль себя». У параболы так не выйдет: (x + 2)² ≠ x² + 2.
+          </details>
+        </li>
+        <li>Где будут асимптоты у гиперболы y = 1/(x − 1) + 4? Сначала ответьте, потом проверьте.</li>
+        <li>У y = log₂x какой из двух сдвигов меняет <b>область определения</b>? А у y = 2ˣ какой сдвиг меняет <b>множество значений</b>?</li>
+        <li>Режим «Поймай график»: поймайте 5 целей подряд, двигая каждый ползунок только один раз.</li>
+      </ol>
+  </section>
+</main>
+
+<script src="../../shared/ui.js"></script>
+<script>
+(function () {
+  const { fmt, urlState, MINUS } = Lab;
+
+  // ---------- Функции ----------
+  // key — опорная точка исходного графика; asymV/asymH — асимптоты исходного графика.
+  const FUNCS = {
+    lin:  { name: "Линейная",       base: "y = x",     f: x => x,                      key: [0, 0], keyName: "точка (0; 0)" },
+    quad: { name: "Квадратичная",   base: "y = x²",    f: x => x * x,                  key: [0, 0], keyName: "вершина" },
+    hyp:  { name: "Гипербола",      base: "y = 1/x",   f: x => (x === 0 ? NaN : 1 / x), key: [0, 0], keyName: "центр", asymV: 0, asymH: 0 },
+    sqrt: { name: "Корень",         base: "y = √x",    f: x => (x < 0 ? NaN : Math.sqrt(x)), key: [0, 0], keyName: "начало графика" },
+    exp:  { name: "Показательная",  base: "y = 2ˣ",    f: x => Math.pow(2, x),         key: [0, 1], keyName: "точка (0; 1)", asymH: 0 },
+    log:  { name: "Логарифм",       base: "y = log₂x", f: x => (x <= 0 ? NaN : Math.log2(x)), key: [1, 0], keyName: "точка (1; 0)", asymV: 0 },
+  };
+
+  const RANGE = 6, STEP = 0.5;
+  const snap = v => Math.max(-RANGE, Math.min(RANGE, Math.round(v / STEP) * STEP));
+
+  const state = {
+    f: FUNCS[urlState.get("f", "quad")] ? urlState.get("f", "quad") : "quad",
+    p: snap(urlState.getNum("p", 0)),
+    q: snap(urlState.getNum("q", 0)),
+    target: null,       // {p, q} в режиме «Поймай график»
+    caught: 0,
+  };
+
+  // ---------- Интерфейс ----------
+  const fchips = document.getElementById("fchips");
+  for (const [id, F] of Object.entries(FUNCS)) {
+    const b = document.createElement("button");
+    b.className = "chip"; b.dataset.f = id;
+    b.textContent = F.base;
+    b.title = F.name;
+    b.addEventListener("click", () => { state.f = id; if (state.target) newTarget(); update(); });
+    fchips.appendChild(b);
+  }
+
+  const sliderBox = document.getElementById("sliders");
+  const sP = Lab.slider(sliderBox, {
+    label: '<b>p</b> — к аргументу: <span style="white-space:nowrap">f(x + p)</span>',
+    min: -RANGE, max: RANGE, step: STEP, value: state.p,
+    onInput: v => { state.p = v; update(); },
+  });
+  const sQ = Lab.slider(sliderBox, {
+    label: '<b>q</b> — ко всей функции: <span style="white-space:nowrap">f(x) + q</span>',
+    min: -RANGE, max: RANGE, step: STEP, value: state.q,
+    onInput: v => { state.q = v; update(); },
+  });
+
+  const tGhost = document.getElementById("tGhost");
+  const tArrows = document.getElementById("tArrows");
+  const tAsym = document.getElementById("tAsym");
+  [tGhost, tArrows, tAsym].forEach(t => t.addEventListener("change", draw));
+
+  document.getElementById("reset").addEventListener("click", () => {
+    state.p = 0; state.q = 0; sP.set(0); sQ.set(0); update();
+  });
+  const copyBtn = document.getElementById("copy");
+  copyBtn.addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText(location.href); copyBtn.textContent = "Скопировано ✓"; }
+    catch (e) { copyBtn.textContent = "Скопируйте из адресной строки"; }
+    setTimeout(() => (copyBtn.textContent = "Скопировать ссылку"), 1800);
+  });
+
+  // ---------- Тексты ----------
+  const num = (v, cls) => `<span class="${cls}">${fmt(Math.abs(v))}</span>`;
+  function argHTML(p) {
+    if (p === 0) return "x";
+    return `x ${p > 0 ? "+" : MINUS} ${num(p, "p")}`;
+  }
+  function tailHTML(q) {
+    if (q === 0) return "";
+    return ` ${q > 0 ? "+" : MINUS} ${num(q, "q")}`;
+  }
+  function formulaHTML(fid, p, q) {
+    const A = argHTML(p), T = tailHTML(q);
+    switch (fid) {
+      case "lin":  return p === 0 ? `y = x${T}` : `y = (${A})${T}`;
+      case "quad": return p === 0 ? `y = x²${T}` : `y = (${A})²${T}`;
+      case "hyp":  return `y = <span class="frac"><span>1</span><span>${A}</span></span>${T}`;
+      case "sqrt": return `y = <span class="sqrt">√<span>${A}</span></span>${T}`;
+      case "exp":  return `y = 2<sup>${A}</sup>${T}`;
+      case "log":  return `y = log₂(${A})${T}`;
+    }
+  }
+  function verdictHTML(p, q) {
+    const parts = [];
+    if (p !== 0) parts.push(`${p > 0 ? "влево" : "вправо"} на <b>${fmt(Math.abs(p))}</b>`);
+    if (q !== 0) parts.push(`${q > 0 ? "вверх" : "вниз"} на <b>${fmt(Math.abs(q))}</b>`);
+    return parts.length ? "График сдвинут " + parts.join(" и ") : "Сдвига нет — это исходный график";
+  }
+
+  // ---------- Рисование ----------
+  const svg = document.getElementById("plot");
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 600, H = 600, PAD = 20, XMIN = -10, XMAX = 10, YMIN = -10, YMAX = 10;
+  const sx = x => PAD + (x - XMIN) / (XMAX - XMIN) * (W - 2 * PAD);
+  const sy = y => H - PAD - (y - YMIN) / (YMAX - YMIN) * (H - 2 * PAD);
+  const ix = px => XMIN + (px - PAD) / (W - 2 * PAD) * (XMAX - XMIN);
+  const iy = py => YMIN + (H - PAD - py) / (H - 2 * PAD) * (YMAX - YMIN);
+
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(e);
+    return e;
+  }
+
+  // Путь графика y = f(x + p) + q с разрывами (асимптоты, область определения).
+  function pathFor(fid, p, q) {
+    const F = FUNCS[fid];
+    const N = 1400, LIM = 60;
+    // Равномерная сетка + точки, прижатые к асимптоте и к началу области
+    // определения, чтобы график уходил в бесконечность / начинался точно.
+    const xs = [];
+    for (let i = 0; i <= N; i++) xs.push(XMIN - 0.5 + (XMAX - XMIN + 1) * i / N);
+    const edge = F.asymV !== undefined ? F.asymV : (fid === "sqrt" ? 0 : null);
+    if (edge !== null) {
+      xs.push(edge - p);
+      for (let k = 1; k <= 14; k++) { const e = Math.pow(10, -k / 2); xs.push(edge - p + e, edge - p - e); }
+    }
+    xs.sort((a, b) => a - b);
+    let d = "", pen = false, prevSide = null;
+    for (const x of xs) {
+      const u = x + p;
+      const y = F.f(u) + q;
+      const side = F.asymV !== undefined ? Math.sign(u - F.asymV) : 0;
+      const bad = !Number.isFinite(y) || Math.abs(y) > LIM;
+      if (bad || (pen && side !== prevSide)) { pen = false; }
+      if (!bad) {
+        d += (pen ? "L" : "M") + sx(x).toFixed(2) + " " + sy(y).toFixed(2);
+        pen = true;
+      }
+      prevSide = side;
+    }
+    return d;
+  }
+
+  function arrow(x1, y1, x2, y2, color) {
+    if (Math.abs(x1 - x2) < 1e-9 && Math.abs(y1 - y2) < 1e-9) return;
+    el("line", { x1: sx(x1), y1: sy(y1), x2: sx(x2), y2: sy(y2), stroke: color, "stroke-width": 3,
+      "marker-end": "url(#arr)", "stroke-linecap": "round" });
+  }
+
+  function draw() {
+    const { f: fid, p, q } = state;
+    const F = FUNCS[fid];
+    svg.innerHTML = "";
+    const css = getComputedStyle(document.documentElement);
+    const C = n => css.getPropertyValue(n).trim();
+
+    const defs = el("defs", {});
+    const m = el("marker", { id: "arr", viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 5, markerHeight: 5, orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0 0 L10 5 L0 10 z", fill: C("--warm") }, m);
+    const clip = el("clipPath", { id: "clip" }, defs);
+    el("rect", { x: PAD, y: PAD, width: W - 2 * PAD, height: H - 2 * PAD }, clip);
+
+    // Сетка
+    const g = el("g", { "stroke-width": 1 });
+    for (let k = XMIN; k <= XMAX; k++) {
+      el("line", { x1: sx(k), y1: sy(YMIN), x2: sx(k), y2: sy(YMAX), stroke: C("--grid") }, g);
+      el("line", { x1: sx(XMIN), y1: sy(k), x2: sx(XMAX), y2: sy(k), stroke: C("--grid") }, g);
+    }
+    // Оси
+    el("line", { x1: sx(XMIN), y1: sy(0), x2: sx(XMAX), y2: sy(0), stroke: C("--axis"), "stroke-width": 1.5 });
+    el("line", { x1: sx(0), y1: sy(YMIN), x2: sx(0), y2: sy(YMAX), stroke: C("--axis"), "stroke-width": 1.5 });
+    for (let k = XMIN + 2; k < XMAX; k += 2) {
+      if (k === 0) continue;
+      el("text", { x: sx(k), y: sy(0) + 16, "text-anchor": "middle", "font-size": 15, fill: C("--muted") }).textContent = fmt(k);
+      el("text", { x: sx(0) - 6, y: sy(k) + 4, "text-anchor": "end", "font-size": 15, fill: C("--muted") }).textContent = fmt(k);
+    }
+    el("text", { x: sx(XMAX) - 4, y: sy(0) - 8, "text-anchor": "end", "font-size": 14, "font-style": "italic", fill: C("--muted") }).textContent = "x";
+    el("text", { x: sx(0) + 8, y: sy(YMAX) + 14, "font-size": 14, "font-style": "italic", fill: C("--muted") }).textContent = "y";
+    el("text", { x: sx(0) - 6, y: sy(0) + 16, "text-anchor": "end", "font-size": 15, fill: C("--muted") }).textContent = "0";
+
+    const plotG = el("g", { "clip-path": "url(#clip)" });
+
+    // Асимптоты (новые)
+    if (tAsym.checked) {
+      const ac = { stroke: C("--accent"), "stroke-width": 1.5, "stroke-dasharray": "6 5", opacity: 0.7 };
+      if (F.asymV !== undefined) el("line", { x1: sx(F.asymV - p), y1: sy(YMIN), x2: sx(F.asymV - p), y2: sy(YMAX), ...ac }, plotG);
+      if (F.asymH !== undefined) el("line", { x1: sx(XMIN), y1: sy(F.asymH + q), x2: sx(XMAX), y2: sy(F.asymH + q), ...ac }, plotG);
+    }
+
+    // Исходный график
+    if (tGhost.checked) {
+      el("path", { d: pathFor(fid, 0, 0), fill: "none", stroke: C("--ghost"), "stroke-width": 2.5, "stroke-dasharray": "8 6" }, plotG);
+    }
+    // Цель
+    if (state.target) {
+      el("path", { d: pathFor(fid, state.target.p, state.target.q), fill: "none", stroke: C("--target"),
+        "stroke-width": 6, "stroke-dasharray": "1 9", "stroke-linecap": "round", opacity: 0.9 }, plotG);
+    }
+    // Новый график
+    el("path", { d: pathFor(fid, p, q), fill: "none", stroke: C("--accent"), "stroke-width": 3.5, "stroke-linejoin": "round" }, plotG);
+
+    // Опорные точки и стрелки
+    const [kx, ky] = F.key;
+    const nx = kx - p, ny = ky + q;
+    if (tGhost.checked) el("circle", { cx: sx(kx), cy: sy(ky), r: 5, fill: C("--panel"), stroke: C("--ghost"), "stroke-width": 2.5 });
+    if (tArrows.checked) {
+      arrow(kx, ky, nx, ky, C("--warm"));
+      arrow(nx, ky, nx, ny, C("--warm"));
+    }
+    // Подпись координат опорной точки
+    const lbl = `(${fmt(nx)}; ${fmt(ny)})`;
+    const right = sx(nx) < W - 120;
+    const tx = sx(nx) + (right ? 14 : -14), ty = sy(ny) + (sy(ny) < 40 ? 24 : -12);
+    const t = el("text", { x: tx, y: ty, "text-anchor": right ? "start" : "end", "font-size": 17, "font-weight": 700,
+      fill: C("--warm"), stroke: C("--panel"), "stroke-width": 4, "paint-order": "stroke" });
+    t.textContent = lbl;
+
+    // Перетаскиваемая точка (с большой невидимой зоной для пальца)
+    const kp = el("g", { class: "keypt" });
+    el("circle", { cx: sx(nx), cy: sy(ny), r: 22, fill: "transparent" }, kp);
+    el("circle", { cx: sx(nx), cy: sy(ny), r: 8, fill: C("--warm"), stroke: C("--panel"), "stroke-width": 3 }, kp);
+    kp.addEventListener("pointerdown", startDrag);
+  }
+
+  // ---------- Перетаскивание опорной точки ----------
+  let dragging = false;
+  function toSvg(evt) {
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  function startDrag(evt) {
+    dragging = true;
+    evt.preventDefault();
+    svg.setPointerCapture && svg.setPointerCapture(evt.pointerId);
+  }
+  svg.addEventListener("pointermove", evt => {
+    if (!dragging) return;
+    const pt = toSvg(evt);
+    const [kx, ky] = FUNCS[state.f].key;
+    const p = snap(kx - ix(pt.x)), q = snap(iy(pt.y) - ky);
+    if (p !== state.p || q !== state.q) {
+      state.p = p; state.q = q; sP.set(p); sQ.set(q); update();
+    }
+  });
+  const endDrag = () => (dragging = false);
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointercancel", endDrag);
+
+  // ---------- Режим «Поймай график» ----------
+  const cstatus = document.getElementById("cstatus");
+  const stopBtn = document.getElementById("stopTarget");
+  function newTarget() {
+    let p, q;
+    do {
+      p = Math.round(Math.random() * 10 - 5);
+      q = Math.round(Math.random() * 10 - 5);
+    } while ((p === 0 && q === 0) || (p === state.p && q === state.q) ||
+             (state.f === "lin" && p + q === state.p + state.q)); // у прямой y = x сдвиги неразличимы
+    state.target = { p, q };
+    stopBtn.hidden = false;
+    update();
+  }
+  document.getElementById("newTarget").addEventListener("click", newTarget);
+  stopBtn.addEventListener("click", () => { state.target = null; state.caught = 0; stopBtn.hidden = true; update(); });
+
+  function checkTarget() {
+    const lg = document.getElementById("lgTarget");
+    lg.hidden = !state.target;
+    if (!state.target) { cstatus.textContent = ""; cstatus.className = "challenge-status"; return; }
+    const { p, q } = state.target;
+    // Для y = x засчитываем любой сдвиг, дающий ту же прямую
+    const hit = state.f === "lin" ? (state.p + state.q === p + q) : (state.p === p && state.q === q);
+    if (hit) {
+      if (!state.target.done) { state.caught++; state.target.done = true; }
+      cstatus.className = "challenge-status win";
+      cstatus.textContent = `Попали! Поймано: ${state.caught}. Нажмите «Новая цель».`;
+    } else {
+      cstatus.className = "challenge-status";
+      cstatus.textContent = `Цель на графике. Поймано: ${state.caught}.`;
+    }
+  }
+
+  // ---------- Обновление ----------
+  function update() {
+    const { f: fid, p, q } = state;
+    const F = FUNCS[fid];
+    document.querySelectorAll("#fchips .chip").forEach(b => b.setAttribute("aria-pressed", b.dataset.f === fid));
+    document.getElementById("formula").innerHTML = formulaHTML(fid, p, q);
+    document.getElementById("verdict").innerHTML = verdictHTML(p, q);
+    document.getElementById("lgGhost").textContent = "исходный " + F.base;
+    sP.hint(p === 0 ? "&nbsp;" :
+      `к аргументу ${p > 0 ? "прибавили" : "вычли"} ${fmt(Math.abs(p))} → график <b>${p > 0 ? "влево" : "вправо"}</b>`);
+    sQ.hint(q === 0 ? "&nbsp;" :
+      `к функции ${q > 0 ? "прибавили" : "вычли"} ${fmt(Math.abs(q))} → график <b>${q > 0 ? "вверх" : "вниз"}</b>`);
+    urlState.set({ f: fid, p: p || null, q: q || null });
+    draw();
+    checkTarget();
+  }
+
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+  update();
+})();
+</script>
+</body>
+</html>
