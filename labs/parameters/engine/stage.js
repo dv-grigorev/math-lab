@@ -159,7 +159,10 @@ PL.stage = function (opts0 = {}) {
     const sol = V.solutions(ct, a);
     plot.render(ct, scene.view, a, { extras: scene.extras, highlight: scene.highlight, solutions: sol });
     // формулы с подставленным a
-    $("eqs").innerHTML = ct.parts.map((part, pi) => part.filter(c => !c.sweep).map(c => `<span class="p${pi} f">${curveHTML(c.src, ct.plane, a)}</span>`).join("")).join("");
+    // в особой точке подставляем точное a: «y = x + 2√2», а не «y = x + 2,828»
+    const mk = scene.map ? marks().find(m => Math.abs(m.p - a) < 1e-9) : null;
+    const exact = mk ? S.exact(mk.p, mk.label) : null;
+    $("eqs").innerHTML = ct.parts.map((part, pi) => part.filter(c => !c.sweep).map(c => `<span class="p${pi} f">${curveHTML(c.src, ct.plane, a, exact)}</span>`).join("")).join("");
     const where = ct.asks.length === 1 ? ct.asks[0].where : null;
     const n = V.countWhere(sol, where, a);
     const ok = ct.asks.every(q => ({ "=": n === q.k, ">=": n >= q.k, "<=": n <= q.k, ">": n > q.k, "<": n < q.k, "!=": n !== q.k })[q.op]);
@@ -169,12 +172,12 @@ PL.stage = function (opts0 = {}) {
     amap.render(ct.aRange, scene.map, a, scene.rows, scene.diff);
     renderLegend();
   }
-  function curveHTML(src, plane, a) {
+  function curveHTML(src, plane, a, exact) {
     const [body, cond] = src.split(/\s+при\s+/);
     const sides = body.split(/(?<![<>!])=(?!=)/).map(s => {
       try {
         const ast = E.parse(s);
-        return plane === "xa" ? E.html(ast) : E.htmlWith(ast, E.uses(ast, "a") ? a : undefined);
+        return plane === "xa" ? E.html(ast) : E.uses(ast, "a") ? E.htmlWith(ast, a, exact) : E.html(ast);
       } catch (e) { return s; }
     });
     return sides.join(" = ") + (cond ? ", " + E.formulaHTML(cond) : "");

@@ -52,6 +52,8 @@ PL.sets = (function () {
   function recognize(v) {
     if (!Number.isFinite(v)) return null;
     let best = null;
+    const take = (score, str) => { if (!best || score < best.score) best = { score, str }; };
+    // (p + q√d)/n
     for (let n = 1; n <= 12; n++) {
       for (const d of SQUAREFREE) {
         const qs = d === 1 ? [0] : [];
@@ -60,19 +62,50 @@ PL.sets = (function () {
           const p = Math.round(v * n - q * Math.sqrt(d));
           if (Math.abs(p) > 200 || Math.abs(v * n - p - q * Math.sqrt(d)) > 1e-7 * n) continue;
           const sd = surd(p, q, d, n);
-          const score = sd.n + Math.abs(sd.q) + (sd.q ? sd.d / 4 : 0) + Math.abs(sd.p) / 8;
-          if (!best || score < best.score) best = { score, sd };
+          take(sd.n + Math.abs(sd.q) + (sd.q ? sd.d / 4 : 0) + Math.abs(sd.p) / 8, surdStr(sd));
         }
       }
-      if (best && best.score <= n) break;
+      if (best && best.score <= n) return best.str;
     }
-    return best ? surdStr(best.sd) : null;
+    if (best && best.score <= 6) return best.str;
+    // (m/n)·log_b(k): log2(3), lg(5), ln(2), 2log3(5)/3
+    for (const [b, name] of [[2, "log2"], [3, "log3"], [5, "log5"], [10, "lg"], [Math.E, "ln"]]) {
+      for (let k = 2; k <= 100; k++) {
+        const L = Math.log(k) / Math.log(b);
+        if (Math.abs(L - Math.round(L)) < 1e-9) continue; // log2(8) = 3 — это просто число
+        for (let n = 1; n <= 6; n++) for (let m = 1; m <= 6; m++) {
+          if (gcd(m, n) !== 1) continue;
+          for (const sg of [1, -1]) {
+            if (Math.abs(v - sg * m * L / n) > 1e-8) continue;
+            take(3 + m + n + k / 10, (sg < 0 ? "-" : "") + (m === 1 ? "" : m) + `${name}(${k})` + (n === 1 ? "" : "/" + n));
+          }
+        }
+      }
+    }
+    // p·π/n
+    for (let n = 1; n <= 12; n++) for (let p = -24; p <= 24; p++) {
+      if (!p || gcd(p, n) !== 1 || Math.abs(v - p * Math.PI / n) > 1e-8) continue;
+      take(2 + Math.abs(p) + n, (p < 0 ? "-" : "") + (Math.abs(p) === 1 ? "" : Math.abs(p)) + "pi" + (n === 1 ? "" : "/" + n));
+    }
+    return best ? best.str : null;
   }
-  // Подпись числа: точная запись, если узнали, иначе «≈ 2,83». Минус — «−».
+  // Запись для простого текста (ось, ползунок): «log₂3», «√8», «2π/3», минус — «−».
+  function plain(s) {
+    const sub = { 2: "₂", 3: "₃", 5: "₅" };
+    return s.replace(/log(\d)\(([^()]+)\)/g, (_, b, k) => "log" + sub[b] + k)
+      .replace(/\b(lg|ln)\(([^()]+)\)/g, "$1$2")
+      .replace(/sqrt\(([^()]+)\)/g, "√$1")
+      .replace(/pi/g, "π").replace(/-/g, "−");
+  }
+  // Точная запись числа (её можно разобрать формулой) или null
+  function exact(v, given) {
+    if (given) { try { if (Math.abs(PL.expr.value(given) - v) < 1e-9) return given; } catch (e) { /* не формула */ } }
+    return recognize(v);
+  }
+  // Подпись числа: точная запись, если узнали, иначе «≈ 2,83».
   function label(v, given) {
-    // запись из ответа берём, если она «школьная» (без sqrt и т. п.)
-    const s = (given && !/[a-z]/i.test(given) ? given : null) || recognize(v);
-    return s ? s.replace(/-/g, "−") : "≈ " + PL.expr.fmtNum(v);
+    const s = exact(v, given);
+    return s ? plain(s) : "≈ " + PL.expr.fmtNum(v);
   }
 
   // ---------- Конструкторы множеств ----------
@@ -240,6 +273,6 @@ PL.sets = (function () {
     });
   }
 
-  return { surd, surdStr, recognize, label, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
+  return { surd, surdStr, recognize, exact, plain, label, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
     contains, normalize, union, intersect, minus, equal, parse, tryParse, format, formatHTML, boundaries, EPS };
 })();

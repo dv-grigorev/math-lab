@@ -9,7 +9,8 @@ PL.expr = (function () {
   const FUNCS = {
     sqrt: "Math.sqrt", abs: "Math.abs", sin: "Math.sin", cos: "Math.cos",
     tg: "Math.tan", tan: "Math.tan", ln: "Math.log", lg: "Math.log10",
-    log2: "Math.log2", exp: "Math.exp",
+    log2: "Math.log2", log3: "((t)=>Math.log(t)/Math.log(3))", log5: "((t)=>Math.log(t)/Math.log(5))",
+    exp: "Math.exp",
   };
   const VARS = ["x", "y", "a"]; // в вычислениях; для показа годится любая латинская буква
 
@@ -39,7 +40,7 @@ PL.expr = (function () {
         let j = i;
         while (j < s.length && /[a-zA-Z0-9_]/.test(s[j])) j++;
         let word = s.slice(i, j);
-        if (word === "log_2") word = "log2";
+        if (/^log_\d$/.test(word)) word = "log" + word[4];
         splitWord(word, out);
         i = j; continue;
       }
@@ -194,8 +195,9 @@ PL.expr = (function () {
   }
 
   // ---------- Упрощение (для показа формул с подставленным a) ----------
+  // val — число или готовое дерево формулы (например, «2√2»)
   function subst(n, name, val) {
-    if (n.t === "var" && n.n === name) return { t: "num", v: val };
+    if (n.t === "var" && n.n === name) return typeof val === "number" ? { t: "num", v: val } : val;
     if (n.t === "bin") return { ...n, l: subst(n.l, name, val), r: subst(n.r, name, val) };
     if (n.t === "neg" || n.t === "fn") return { ...n, a: subst(n.a, name, val) };
     return n;
@@ -279,7 +281,7 @@ PL.expr = (function () {
       case "fn": {
         if (n.f === "abs") return "|" + html(n.a) + "|";
         if (n.f === "sqrt") return `<span class="sqrt">√<span>${html(n.a)}</span></span>`;
-        const name = { log2: "log<sub>2</sub>", tan: "tg" }[n.f] || n.f;
+        const name = { log2: "log<sub>2</sub>", log3: "log<sub>3</sub>", log5: "log<sub>5</sub>", tan: "tg" }[n.f] || n.f;
         return name + wrap(html(n.a));
       }
       case "bin": {
@@ -299,14 +301,17 @@ PL.expr = (function () {
         if (n.l.t === "neg") return MINUS + html({ ...n, l: n.l.a });
         if (n.l.t === "num" && n.l.v < 0) return MINUS + html({ ...n, l: { t: "num", v: -n.l.v } });
         const l = side(n.l, 2), r = side(n.r, 2.5);
-        return l + (leadsWithNumber(n.r) ? "·" : "") + r;
+        const rootLeft = n.l.t === "fn" && n.l.f === "sqrt" || (n.l.t === "bin" && n.l.op === "*" && n.l.r.t === "fn" && n.l.r.f === "sqrt");
+        return l + (leadsWithNumber(n.r) || rootLeft ? "·" : "") + r;
       }
     }
   }
   function side(n, need) { const s = html(n); return prec(n) < need ? wrap(s) : s; }
 
   // Формула с подставленным a: «y = 0,5x + 2»
-  function htmlWith(ast, aValue) {
+  // exact — точная запись a («2√2», «log2(3)»): подставляем её, а не десятичную дробь
+  function htmlWith(ast, aValue, exact) {
+    if (exact) { try { return html(simplify(subst(ast, "a", parse(exact)))); } catch (e) { /* ниже — числом */ } }
     return html(aValue === undefined ? ast : simplify(subst(ast, "a", aValue)));
   }
 
