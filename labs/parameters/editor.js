@@ -18,7 +18,7 @@
 //   eq: ["x^2 + y^2 = 4", "y = x + a"],       // как считать: две части
 //   ask: "=2",                        // сколько решений нужно
 //   answer: "(-2√2; 2√2)",
-//   aRange: [-10, 10],                // диапазон ползунка a (не уже −10…10)
+//   aRange: [-10, 10],                // диапазон a (необязательно: без него подбирается сам)
 //   steps: [{ html: "Пояснение", a: 1 }],     // решение по шагам (необязательно)
 // }
 `;
@@ -65,7 +65,7 @@
       id: nextId(topic), topic,
       text: "При каких значениях параметра $a$ система имеет ровно два решения?",
       system: ["x^2 + y^2 = 4", "y = x + a"],
-      eq: ["x^2 + y^2 = 4", "y = x + a"], ask: "=2", answer: "", aRange: [-10, 10],
+      eq: ["x^2 + y^2 = 4", "y = x + a"], ask: "=2", answer: "",
       steps: [],
     };
   }
@@ -137,7 +137,7 @@
     $("f-p2").value = plane === "xa" ? "" : [].concat(t.eq[1] || []).join("\n");
     $("f-ask").value = [].concat(t.ask || "").join("; ");
     $("f-answer").value = t.answer || "";
-    const [a0, a1] = t.aRange || [-10, 10];
+    const [a0, a1] = t.aRange || ["", ""];
     $("f-a0").value = a0; $("f-a1").value = a1;
     const v = t.view || {};
     $("f-x0").value = v.x ? v.x[0] : ""; $("f-x1").value = v.x ? v.x[1] : "";
@@ -173,7 +173,9 @@
     const asks = $("f-ask").value.split(";").map(s => s.trim()).filter(Boolean);
     t.ask = asks.length > 1 ? asks : asks[0] || ">=1";
     t.answer = $("f-answer").value.trim();
-    t.aRange = [numOr($("f-a0").value, -10), numOr($("f-a1").value, 10)];
+    // диапазон a: оба поля пустые — подбирается сам
+    const ra0 = $("f-a0").value, ra1 = $("f-a1").value;
+    if (ra0 !== "" && ra1 !== "" && +ra0 < +ra1) t.aRange = [+ra0, +ra1]; else delete t.aRange;
     const x0 = $("f-x0").value, x1 = $("f-x1").value, y0 = $("f-y0").value, y1 = $("f-y1").value;
     if (x0 !== "" && x1 !== "" && y0 !== "" && y1 !== "") t.view = { x: [+x0, +x1], y: [+y0, +y1] }; else delete t.view;
     if (oldId !== t.id) delete status[oldId];
@@ -262,11 +264,12 @@
   function runCheck(t, ap) {
     let ct;
     try { ct = V.compileTask(t); } catch (e) { return; }
-    const approx = V.approx(ct, ct.aRange);
+    const R = stage.s.range;
+    const approx = V.approx(ct, R);
     const approxTxt = approx.length
       ? approx.map(I => `(${I.loInf ? "…" : "≈ " + E.fmtNum(I.lo)}; ${I.hiInf ? "…" : "≈ " + E.fmtNum(I.hi)})`).join(" ∪ ")
       : "таких значений нет";
-    const hint = `<p>По графику, приближённо, для a от ${E.fmtNum(ct.aRange[0])} до ${E.fmtNum(ct.aRange[1])}: ${approxTxt}
+    const hint = `<p>По графику, приближённо, для a от ${E.fmtNum(R[0])} до ${E.fmtNum(R[1])}: ${approxTxt}
       («…» — промежуток идёт до края диапазона). Отдельные значения (касания) так не видны — их проверяем по концам вашего ответа.</p>`;
     if (ap.error) { $("check").innerHTML = `<div class="check-box wait">Ответ ещё не введён.${hint}</div>`; return; }
     const bad = V.verify(t, ap.set);
@@ -280,7 +283,8 @@
       $("check").innerHTML = `<div class="check-box bad"><b>✗ Ответ не сходится с подсчётом.</b><ul>${items}</ul>
         ${bad.length > 5 ? `<p>…и ещё ${bad.length - 5} таких значений.</p>` : ""}
         <p>Проверьте ответ и запись уравнений. Нажмите на ось a под графиком, чтобы посмотреть картинку при этих значениях.</p>${hint}</div>`;
-      stage.setA(Math.max(ct.aRange[0], Math.min(ct.aRange[1], bad[0].a)), false);
+      if (bad[0].a < R[0] || bad[0].a > R[1]) stage.setRange([Math.min(R[0], Math.floor(bad[0].a) - 1), Math.max(R[1], Math.ceil(bad[0].a) + 1)]);
+      stage.setA(bad[0].a, false);
     }
   }
   function setStatus(t, s) { if (status[t.id] !== s) { status[t.id] = s; renderList(); } }
@@ -305,7 +309,8 @@
     const o = { id: t.id, topic: t.topic, text: t.text };
     if (t.system) o.system = t.system;
     if (t.plane) o.plane = t.plane;
-    Object.assign(o, { eq: t.eq, ask: t.ask, answer: t.answer, aRange: t.aRange });
+    Object.assign(o, { eq: t.eq, ask: t.ask, answer: t.answer });
+    if (t.aRange) o.aRange = t.aRange;
     if (t.view) o.view = t.view;
     if (t.steps && t.steps.length) o.steps = t.steps.filter(s => s.html && s.html.trim());
     return o;

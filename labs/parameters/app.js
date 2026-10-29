@@ -311,7 +311,7 @@
   if (Number.isFinite(a0) && scene.ct) {
     // в адресе a округлено — если рядом отдельная точка (касание), встаём точно в неё
     const sp = scene.map.special.find(s => Math.abs(s.p - a0) < 1e-3);
-    setA(sp ? sp.p : Math.max(scene.ct.aRange[0], Math.min(scene.ct.aRange[1], a0)), false);
+    setA(sp ? sp.p : Math.max(scene.range[0], Math.min(scene.range[1], a0)), false);
   }
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
 })();

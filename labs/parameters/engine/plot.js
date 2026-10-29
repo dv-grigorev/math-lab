@@ -230,7 +230,7 @@ PL.plot = (function () {
           taken[r].push(x);
         };
         for (const s of data.special) {
-          el("circle", { cx: sx(s.p), cy: Y, r: 7, fill: countColor(s.n), stroke: C("--ink"), "stroke-width": 2 }, svg);
+          el("circle", { cx: sx(s.p), cy: Y, r: 5, fill: countColor(s.n), stroke: C("--ink"), "stroke-width": 1.5 }, svg);
           if (free(sx(s.p))) text(sx(s.p), PL.sets.label(s.p, s.label), countColor(s.n));
         }
         for (let i = 0; i < data.segs.length - 1; i++) {

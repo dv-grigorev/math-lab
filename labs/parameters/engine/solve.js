@@ -6,7 +6,7 @@
 //       В плоскости "xa" вторая часть не нужна: это прямая a = const.
 //       Кривая: «y = ...», «x = ...» или любое «F(x, y) = G(x, y)», можно с «при <условие>».
 //   ask: "=2" | ">=1" | "inf" | "=2 при x > 1" | массив таких условий (все должны выполняться)
-//   aRange: [a0, a1] — диапазон ползунка (не уже [−10; 10]); box: половина стороны квадрата поиска решений
+//   aRange: [a0, a1] — диапазон ползунка, если нужен именно такой (иначе подбирается сам); box: половина стороны квадрата поиска решений
 PL.solve = (function () {
   const { parse, compile, uses } = PL.expr;
   const TOL = 1e-7;
@@ -71,8 +71,10 @@ PL.solve = (function () {
     return {
       task, plane, parts, asks,
       box: task.box || 30,
-      // ползунок a — не уже, чем от −10 до 10 (заданный диапазон только расширяет его)
-      aRange: [Math.min(-10, (task.aRange || [])[0] ?? -10), Math.max(10, (task.aRange || [])[1] ?? 10)],
+      // aRange — диапазон, заданный вручную (иначе подбирается сам, см. fitRange);
+      // search — где ищем особые значения a
+      aRange: task.aRange ? [...task.aRange] : null,
+      search: [Math.min(-50, (task.aRange || [-50])[0]), Math.max(50, (task.aRange || [0, 50])[1])],
     };
   }
 
@@ -398,7 +400,7 @@ PL.solve = (function () {
   function verify(task, answerSet) {
     const ct = compileTask(task);
     const bs = PL.sets.boundaries(answerSet).map(b => b.v).filter(Number.isFinite);
-    const [r0, r1] = ct.aRange;
+    const [r0, r1] = ct.aRange || [-20, 20];
     const lo = Math.min(r0, ...bs) - 1, hi = Math.max(r1, ...bs) + 1;
     const probes = new Set(bs);
     const sorted = [lo, ...[...new Set(bs)].sort((u, w) => u - w), hi];
@@ -417,6 +419,29 @@ PL.solve = (function () {
       if (want !== got) bad.push({ a: p, want, got });
     }
     return bad.sort((u, w) => u.a - w.a);
+  }
+
+  // ---------- Удобный диапазон a ----------
+  // Грубо считаем решения на широком отрезке, берём все места, где их число меняется
+  // (и концы ответа), и обрамляем их с запасом. Границы — «круглые» числа.
+  function fitRange(ct, extra = []) {
+    const [s0, s1] = ct.search, M = 800;
+    const where = ct.asks.length === 1 ? ct.asks[0].where : null;
+    const pts = extra.filter(Number.isFinite);
+    let prev = null;
+    for (let i = 0; i <= M; i++) {
+      const p = s0 + (s1 - s0) * i / M, n = countWhere(solutions(ct, p, 3000, 90), where, p);
+      if (prev !== null && n !== prev.n) pts.push((prev.p + p) / 2);
+      prev = { p, n };
+    }
+    if (!pts.length) return [-10, 10];
+    const lo = Math.min(...pts), hi = Math.max(...pts), w = hi - lo;
+    const pad = Math.max(w * 0.4, 1);
+    let r0 = lo - pad, r1 = hi + pad;
+    const raw = (r1 - r0) / 10, k = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / k;
+    const step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * k / 2;
+    r0 = Math.floor(r0 / step) * step; r1 = Math.ceil(r1 / step) * step;
+    return [+r0.toPrecision(10), +r1.toPrecision(10)];
   }
 
   // ---------- Приближённый ответ (подсказка в конструкторе) ----------
@@ -444,5 +469,5 @@ PL.solve = (function () {
     return out;
   }
 
-  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, specialAt, mergeSpecial, verify, approx };
+  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, specialAt, mergeSpecial, verify, fitRange, approx };
 })();

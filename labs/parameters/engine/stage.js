@@ -31,10 +31,20 @@ PL.stage = function (opts0 = {}) {
     scene.special = answer ? S.boundaries(answer).filter(b => Number.isFinite(b.v)) : [];
     scene.rows = opts.rows || [];
     scene.diff = opts.diff || null;
-    if (!sameTask || !scene.map) { scene.map = V.map(ct, ct.aRange, { special: scene.special }); scene.found = scene.map.special; }
-    else scene.map.special = V.mergeSpecial(scene.found, V.specialAt(ct, scene.special, ct.aRange));
-    buildSlider(ct.aRange);
-    const a = opts.a !== undefined ? num(opts.a) : task.a !== undefined ? num(task.a) : (ct.aRange[0] + ct.aRange[1]) / 2;
+    if (!sameTask || !scene.map) {
+      // диапазон a: заданный в задаче или подобранный по особым точкам
+      scene.fit = ct.aRange || V.fitRange(ct, scene.special.map(b => b.v));
+      setRange(scene.fit);
+    } else scene.map.special = V.mergeSpecial(scene.found, V.specialAt(ct, scene.special, scene.range));
+    const r = scene.range;
+    let a = opts.a !== undefined ? num(opts.a) : task.a !== undefined ? num(task.a) : NaN;
+    if (!Number.isFinite(a)) {
+      // по умолчанию — внутри самого «интересного» куска (где решения есть), иначе середина
+      const good = scene.map.segs.find(sg => sg.n !== 0 && sg.hi - sg.lo > (r[1] - r[0]) * 0.02);
+      a = good ? +((good.lo + good.hi) / 2).toFixed(2) : (r[0] + r[1]) / 2;
+    }
+    // если нужное a за краем диапазона — расширяем
+    if (a < r[0] || a > r[1]) setRange([Math.min(r[0], Math.floor(a) - 1), Math.max(r[1], Math.ceil(a) + 1)]);
     scene.a0 = a;
     setA(a, false);
     return null;
@@ -117,10 +127,38 @@ PL.stage = function (opts0 = {}) {
   svg.addEventListener("pointerup", up);
   svg.addEventListener("pointercancel", up);
 
+  // Новый диапазон a: пересчитываем карту и ползунок
+  function setRange(range) {
+    scene.range = range;
+    scene.map = V.map(scene.ct, range, { special: scene.special });
+    scene.found = scene.map.special;
+    buildSlider(range);
+  }
+  // «Шире / Уже / Подобрать» для оси a
+  const rangeRow = document.createElement("div");
+  rangeRow.className = "zoom-row range-row";
+  rangeRow.innerHTML = `<span class="zoom-hint">Диапазон <i>a</i>:</span>
+    <button class="btn" data-r="wide" title="Показать больше значений a">Шире</button>
+    <button class="btn" data-r="narrow" title="Показать меньше значений a">Уже</button>
+    <button class="btn" data-r="fit" title="Подобрать по особым точкам">Подобрать</button>`;
+  $("legend").parentNode.insertBefore(rangeRow, $("legend"));
+  rangeRow.addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b || !scene.ct) return;
+    const [r0, r1] = scene.range, c = (r0 + r1) / 2, h = (r1 - r0) / 2;
+    const k = { wide: 2, narrow: 0.5 }[b.dataset.r];
+    let r = b.dataset.r === "fit" ? scene.fit : [c - h * k, c + h * k];
+    if (r[1] - r[0] < 0.2) return;
+    r = r.map(v => +v.toPrecision(10));
+    stopPlay();
+    setRange(r);
+    setA(Math.max(r[0], Math.min(r[1], scene.a)), false);
+  });
+
   function buildSlider([a0, a1]) {
     const box = $("aSlider");
     box.innerHTML = "";
-    const span = a1 - a0, step = span <= 4 ? 0.005 : span <= 40 ? 0.01 : 0.05;
+    const span = a1 - a0, step = +Math.max(1e-4, Math.pow(10, Math.floor(Math.log10(span)) - 3)).toPrecision(1);
     // рядом с отдельной точкой (касанием) ползунок «прилипает» к ней — иначе в неё не попасть
     const stick = (v) => { const sp = marks().find(m => Math.abs(m.p - v) <= 2 * step); return sp ? sp.p : v; };
     slider = Lab.slider(box, { label: "Параметр <b><i>a</i></b>", min: a0, max: a1, step, value: a0, onInput: (v) => setA(stick(v), true) });
@@ -136,7 +174,7 @@ PL.stage = function (opts0 = {}) {
   }
   // клик по оси рядом с особой точкой — встаём точно в неё
   function snap(t) {
-    const [a0, a1] = scene.ct.aRange, tol = (a1 - a0) * 0.015;
+    const [a0, a1] = scene.range, tol = (a1 - a0) * 0.015;
     const sp = marks().find(m => Math.abs(m.p - t) < tol);
     return sp ? sp.p : t;
   }
@@ -169,7 +207,7 @@ PL.stage = function (opts0 = {}) {
     const what = ct.plane === "xa" ? "Корней" : "Решений";
     $("count").innerHTML = `${what}${where ? " (с условием)" : ""}: <b>${n === Infinity ? "бесконечно много" : n}</b>` +
       (ok ? ` <span style="color:var(--good)">— подходит под условие</span>` : "");
-    amap.render(ct.aRange, scene.map, a, scene.rows, scene.diff);
+    amap.render(scene.range, scene.map, a, scene.rows, scene.diff);
     renderLegend();
   }
   function curveHTML(src, plane, a, exact) {
@@ -193,17 +231,62 @@ PL.stage = function (opts0 = {}) {
   // ---------- «Прокрутить» ----------
   let playing = null;
   function stopPlay() { if (playing) cancelAnimationFrame(playing); playing = null; $("play").textContent = "▶ Прокрутить"; }
+  // Насколько сдвигаются подвижные линии на экране при переходе a → a + δ (в долях окна).
+  // Для явных линий сравниваем их точки в окне; для неявных — по сетке, через |ΔF| / |∇F|.
+  function shift(aFrom, aTo) {
+    const v = scene.view, W = v.x[1] - v.x[0], H = v.y[1] - v.y[0];
+    const clip = (y, lo, hi) => Math.max(lo - 0.05 * H, Math.min(hi + 0.05 * H, y));
+    let sum = 0, cnt = 0;
+    for (const part of scene.ct.parts) for (const c of part) {
+      if (!c.moving) continue; // неподвижные линии не учитываем
+      if (c.sweep) { sum += Math.abs(clip(aTo, v.y[0], v.y[1]) - clip(aFrom, v.y[0], v.y[1])) / H; cnt++; continue; }
+      if (c.yOf || c.xOf) {
+        for (let i = 0; i <= 40; i++) {
+          const t = c.yOf ? v.x[0] + W * i / 40 : v.y[0] + H * i / 40;
+          const f = c.yOf ? (p) => c.yOf(t, 0, p) : (p) => c.xOf(0, t, p);
+          const u = f(aFrom), w = f(aTo);
+          if (!Number.isFinite(u) || !Number.isFinite(w)) continue;
+          // сдвиг поперёк линии: вертикальный сдвиг, делённый на √(1 + наклон²)
+          const slope = c.yOf ? (c.yOf(t + 1e-4, 0, aFrom) - u) / 1e-4 : (c.xOf(0, t + 1e-4, aFrom) - u) / 1e-4;
+          const [lo, hi, span] = c.yOf ? [v.y[0], v.y[1], H] : [v.x[0], v.x[1], W];
+          const d = Math.abs(clip(w, lo, hi) - clip(u, lo, hi)) / Math.sqrt(1 + (Number.isFinite(slope) ? slope * slope : 0));
+          sum += d / span; cnt++;
+        }
+      } else {
+        for (let i = 0; i <= 24; i++) for (let j = 0; j <= 24; j++) {
+          const x = v.x[0] + W * i / 24, y = v.y[0] + H * j / 24, F = c.F(x, y, aFrom);
+          const gx = (c.F(x + 1e-4, y, aFrom) - F) / 1e-4, gy = (c.F(x, y + 1e-4, aFrom) - F) / 1e-4, g = Math.hypot(gx, gy);
+          if (!g || Math.abs(F) / g > W / 24) continue; // берём только точки рядом с линией
+          const dF = c.F(x, y, aTo) - F;
+          if (Number.isFinite(dF)) { sum += Math.min(Math.abs(dF) / g, W) / W; cnt++; }
+        }
+      }
+    }
+    return cnt ? sum / cnt : 0;
+  }
   $("play").addEventListener("click", () => {
     if (playing) return stopPlay();
-    const [a0, a1] = scene.ct.aRange, t0 = performance.now(), dur = 6000;
+    const [a0, a1] = scene.range, dur = 7000, K = 300;
+    // Равномерно по картинке: время на кусок [a_i; a_i+1] пропорционально тому,
+    // насколько сдвигаются линии. Куски, где на экране ничего не видно, проходим быстро, но не мгновенно.
+    const as = [], cum = [0];
+    for (let i = 0; i <= K; i++) as.push(a0 + (a1 - a0) * i / K);
+    const m = [];
+    for (let i = 0; i < K; i++) m.push(shift(as[i], as[i + 1]));
+    const mean = m.reduce((u, w) => u + w, 0) / K || 1;
+    for (let i = 0; i < K; i++) cum.push(cum[i] + Math.max(m[i], 0.15 * mean));
+    const total = cum[K], t0 = performance.now();
     $("play").textContent = "■ Стоп";
     const tick = (t) => {
-      const k = Math.min(1, (t - t0) / dur);
-      setA(a0 + (a1 - a0) * k, false);
-      if (k < 1) playing = requestAnimationFrame(tick); else stopPlay();
+      const target = Math.min(1, (t - t0) / dur) * total;
+      let i = 0;
+      while (i < K - 1 && cum[i + 1] < target) i++;
+      const f = (target - cum[i]) / (cum[i + 1] - cum[i] || 1);
+      setA(t - t0 >= dur ? a1 : as[i] + (as[i + 1] - as[i]) * Math.min(1, f), false);
+      if (t - t0 < dur) playing = requestAnimationFrame(tick); else stopPlay();
     };
     playing = requestAnimationFrame(tick);
   });
 
-  return { s: scene, set: setScene, setA, draw, stop: stopPlay };
+  return { s: scene, set: setScene, setA, draw, stop: stopPlay, setRange };
 };
