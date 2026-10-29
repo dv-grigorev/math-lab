@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Задачи с параметром — Математическая лаборатория</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<link rel="stylesheet" href="param.css">
+</head>
+<body>
+<header class="lab-header">
+  <a class="back" href="../../index.html">← Все тренажёры</a>
+  <h1>Задачи с параметром</h1>
+  <p>Решаем графически: двигайте <i>a</i> и смотрите, как меняется картинка и число решений.</p>
+</header>
+
+<main class="pl">
+  <div class="pl-nav">
+    <div class="chips" id="topics" role="group" aria-label="Подтема"></div>
+    <div class="chips tabs" id="tabs" role="group" aria-label="Раздел">
+      <button class="chip" data-tab="memo">Памятка</button>
+      <button class="chip" data-tab="examples">Разборы</button>
+      <button class="chip" data-tab="practice">Практика</button>
+    </div>
+  </div>
+
+  <div class="pl-main">
+    <section class="pl-text" id="text"></section>
+
+    <section class="pl-stage">
+      <div class="card" id="stageCard">
+        <div class="eqs" id="eqs"></div>
+        <svg class="plot" id="plot" role="img" aria-label="График"></svg>
+        <div class="count" id="count"></div>
+        <div class="a-row">
+          <div id="aSlider"></div>
+          <div class="btn-row">
+            <button class="btn" id="play" title="Прокрутить a по всему диапазону">▶ Прокрутить</button>
+            <button class="btn" id="reset" title="Вернуть a в начальное положение">Сбросить</button>
+          </div>
+        </div>
+        <svg class="map" id="map" role="img" aria-label="Карта ответа: число решений при разных a"></svg>
+        <div class="map-legend" id="legend"></div>
+      </div>
+      <div class="card hidden-stage" id="stageHidden" hidden>
+        <p>График откроется после проверки — сначала попробуйте решить сами.</p>
+        <button class="btn" id="peek">Всё равно показать</button>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="../../shared/ui.js"></script>
+<script src="engine/expr.js"></script>
+<script src="engine/sets.js"></script>
+<script src="engine/solve.js"></script>
+<script src="engine/plot.js"></script>
+<script src="engine/stage.js"></script>
+<script src="topics/quad-roots.js"></script>
+<script src="topics/circle-line.js"></script>
+<script src="topics/graph-xy.js"></script>
+<script src="bank/teacher.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
