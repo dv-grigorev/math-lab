@@ -306,8 +306,12 @@
     }));
   }
 
+  const a0 = urlState.getNum("a", NaN); // читаем до render(): он чистит адрес
   render();
-  const a0 = urlState.getNum("a", NaN);
-  if (Number.isFinite(a0) && scene.ct) setA(Math.max(scene.ct.aRange[0], Math.min(scene.ct.aRange[1], a0)), false);
+  if (Number.isFinite(a0) && scene.ct) {
+    // в адресе a округлено — если рядом отдельная точка (касание), встаём точно в неё
+    const sp = scene.map.special.find(s => Math.abs(s.p - a0) < 1e-3);
+    setA(sp ? sp.p : Math.max(scene.ct.aRange[0], Math.min(scene.ct.aRange[1], a0)), false);
+  }
   window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
 })();

@@ -186,12 +186,12 @@ PL.plot = (function () {
     const W = 600, PAD = 22;
     function render(range, data, a, rows = [], diff = null) {
       const [A0, A1] = range;
-      const H = 66 + rows.length * 30;
+      const H = 74 + rows.length * 30;
       const sx = (t) => PAD + (t - A0) / (A1 - A0) * (W - 2 * PAD);
       st = { sx, A0, A1 };
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.innerHTML = "";
-      const Y = 26;
+      const Y = 34;
       if (diff) for (const [u, w] of diff) {
         const x1 = sx(Math.max(u, A0)), x2 = sx(Math.min(w, A1));
         el("rect", { x: Math.min(x1, x2) - 3, y: 8, width: Math.max(6, Math.abs(x2 - x1) + 6), height: H - 12, rx: 4, fill: "#e5484d", opacity: 0.18 }, svg);
@@ -206,14 +206,24 @@ PL.plot = (function () {
         el("text", { x: sx(t), y: Y + 32, "text-anchor": "middle", "font-size": 13, fill: C("--muted") }, svg).textContent = fmtNum(t);
       }
       el("text", { x: W - 4, y: Y + 4, "text-anchor": "end", "font-size": 14, "font-style": "italic", fill: C("--muted") }, svg).textContent = "a";
-      if (data) for (const s of data.special) {
-        el("circle", { cx: sx(s.p), cy: Y, r: 6, fill: countColor(s.n), stroke: C("--panel"), "stroke-width": 2 }, svg);
+      if (data) {
+        let lastX = -1e9;
+        for (const s of data.special) {
+          el("circle", { cx: sx(s.p), cy: Y, r: 7, fill: countColor(s.n), stroke: C("--ink"), "stroke-width": 2 }, svg);
+          // подпись значения, если не налезает на соседнюю
+          if (sx(s.p) - lastX > 46) {
+            const txt = s.label ? s.label.replace(/-/g, "−") : fmtNum(s.p);
+            el("text", { x: sx(s.p), y: Y - 13, "text-anchor": "middle", "font-size": 12, "font-weight": 700, fill: countColor(s.n),
+              stroke: C("--panel"), "stroke-width": 3, "paint-order": "stroke" }, svg).textContent = txt;
+            lastX = sx(s.p);
+          }
+        }
       }
       // текущее a
       if (a !== null && a >= A0 && a <= A1) {
         el("path", { d: `M${sx(a)} ${Y - 9} l-7 -10 h14 z`, fill: C("--ink") }, svg);
       }
-      rows.forEach((r, i) => drawSet(r, 86 + i * 30, sx, A0, A1));
+      rows.forEach((r, i) => drawSet(r, 94 + i * 30, sx, A0, A1));
     }
     function drawSet(r, y, sx, A0, A1) {
       const color = C(r.color);

@@ -26,11 +26,11 @@ PL.stage = function (opts0 = {}) {
     scene.extras = opts.extras || task.extras || [];
     scene.highlight = opts.highlight;
     const answer = opts.answer ? S.parse(opts.answer).set : null;
-    scene.special = answer ? S.boundaries(answer).map(b => b.v).filter(Number.isFinite) : [];
+    scene.special = answer ? S.boundaries(answer).filter(b => Number.isFinite(b.v)) : [];
     scene.rows = opts.rows || [];
     scene.diff = opts.diff || null;
-    if (!sameTask || !scene.map) scene.map = V.map(ct, ct.aRange, { special: scene.special });
-    else if (scene.special.length) scene.map.special = V.map(ct, ct.aRange, { special: scene.special, samples: 1 }).special;
+    if (!sameTask || !scene.map) { scene.map = V.map(ct, ct.aRange, { special: scene.special }); scene.found = scene.map.special; }
+    else scene.map.special = V.mergeSpecial(scene.found, V.specialAt(ct, scene.special, ct.aRange));
     buildSlider(ct.aRange);
     const a = opts.a !== undefined ? num(opts.a) : task.a !== undefined ? num(task.a) : (ct.aRange[0] + ct.aRange[1]) / 2;
     scene.a0 = a;
@@ -42,13 +42,15 @@ PL.stage = function (opts0 = {}) {
   function buildSlider([a0, a1]) {
     const box = $("aSlider");
     box.innerHTML = "";
-    const span = a1 - a0, step = span <= 4 ? 0.01 : span <= 12 ? 0.05 : 0.1;
-    slider = Lab.slider(box, { label: "Параметр <b><i>a</i></b>", min: a0, max: a1, step, value: a0, onInput: (v) => setA(v, true) });
+    const span = a1 - a0, step = span <= 4 ? 0.005 : span <= 40 ? 0.01 : 0.05;
+    // рядом с отдельной точкой (касанием) ползунок «прилипает» к ней — иначе в неё не попасть
+    const stick = (v) => { const sp = scene.map.special.find(s => Math.abs(s.p - v) <= 2 * step); return sp ? sp.p : v; };
+    slider = Lab.slider(box, { label: "Параметр <b><i>a</i></b>", min: a0, max: a1, step, value: a0, onInput: (v) => setA(stick(v), true) });
   }
   // клик по оси рядом с особой точкой — встаём точно в неё
   function snap(t) {
     const [a0, a1] = scene.ct.aRange, tol = (a1 - a0) * 0.015;
-    const sp = [...scene.special, ...scene.map.special.map(s => s.p)].find(p => Math.abs(p - t) < tol);
+    const sp = scene.map.special.map(s => s.p).find(p => Math.abs(p - t) < tol);
     return sp !== undefined ? sp : t;
   }
 
@@ -89,10 +91,10 @@ PL.stage = function (opts0 = {}) {
     return sides.join(" = ") + (cond ? ", " + E.formulaHTML(cond) : "");
   }
   function renderLegend() {
-    const ns = [...new Set(scene.map.segs.map(s => s.n))].sort((p, q) => p - q);
+    const ns = [...new Set([...scene.map.segs, ...scene.map.special].map(s => s.n))].sort((p, q) => p - q);
     const word = (n) => n === Infinity ? "∞" : n;
-    let h = ns.map(n => `<span><i style="background:${PL.plot.countColor(n)}"></i>${word(n)}</span>`).join("");
-    h = "<span>число решений:</span>" + h;
+    let h = "<span>число решений:</span>" + ns.map(n => `<span><i style="background:${PL.plot.countColor(n)}"></i>${word(n)}</span>`).join("");
+    if (scene.map.special.length) h += `<span>● — отдельное значение <em>a</em>, нажмите на него</span>`;
     $("legend").innerHTML = h;
   }
 

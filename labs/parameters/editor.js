@@ -18,7 +18,7 @@
 //   eq: ["x^2 + y^2 = 4", "y = x + a"],       // как считать: две части
 //   ask: "=2",                        // сколько решений нужно
 //   answer: "(-2√2; 2√2)",
-//   aRange: [-5, 5],                  // диапазон ползунка a
+//   aRange: [-10, 10],                // диапазон ползунка a (не уже −10…10)
 //   steps: [{ html: "Пояснение", a: 1 }],     // решение по шагам (необязательно)
 // }
 `;
@@ -65,7 +65,7 @@
       id: nextId(topic), topic,
       text: "При каких значениях параметра $a$ система имеет ровно два решения?",
       system: ["x^2 + y^2 = 4", "y = x + a"],
-      eq: ["x^2 + y^2 = 4", "y = x + a"], ask: "=2", answer: "", aRange: [-5, 5],
+      eq: ["x^2 + y^2 = 4", "y = x + a"], ask: "=2", answer: "", aRange: [-10, 10],
       steps: [],
     };
   }
@@ -137,7 +137,7 @@
     $("f-p2").value = plane === "xa" ? "" : [].concat(t.eq[1] || []).join("\n");
     $("f-ask").value = [].concat(t.ask || "").join("; ");
     $("f-answer").value = t.answer || "";
-    const [a0, a1] = t.aRange || [-5, 5];
+    const [a0, a1] = t.aRange || [-10, 10];
     $("f-a0").value = a0; $("f-a1").value = a1;
     const v = t.view || {};
     $("f-x0").value = v.x ? v.x[0] : ""; $("f-x1").value = v.x ? v.x[1] : "";
@@ -173,7 +173,7 @@
     const asks = $("f-ask").value.split(";").map(s => s.trim()).filter(Boolean);
     t.ask = asks.length > 1 ? asks : asks[0] || ">=1";
     t.answer = $("f-answer").value.trim();
-    t.aRange = [numOr($("f-a0").value, -5), numOr($("f-a1").value, 5)];
+    t.aRange = [numOr($("f-a0").value, -10), numOr($("f-a1").value, 10)];
     const x0 = $("f-x0").value, x1 = $("f-x1").value, y0 = $("f-y0").value, y1 = $("f-y1").value;
     if (x0 !== "" && x1 !== "" && y0 !== "" && y1 !== "") t.view = { x: [+x0, +x1], y: [+y0, +y1] }; else delete t.view;
     if (oldId !== t.id) delete status[oldId];

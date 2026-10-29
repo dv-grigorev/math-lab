@@ -6,7 +6,7 @@
 //       В плоскости "xa" вторая часть не нужна: это прямая a = const.
 //       Кривая: «y = ...», «x = ...» или любое «F(x, y) = G(x, y)», можно с «при <условие>».
 //   ask: "=2" | ">=1" | "inf" | "=2 при x > 1" | массив таких условий (все должны выполняться)
-//   aRange: [a0, a1] — диапазон ползунка; box: половина стороны квадрата поиска решений
+//   aRange: [a0, a1] — диапазон ползунка (не уже [−10; 10]); box: половина стороны квадрата поиска решений
 PL.solve = (function () {
   const { parse, compile, uses } = PL.expr;
   const TOL = 1e-7;
@@ -71,7 +71,8 @@ PL.solve = (function () {
     return {
       task, plane, parts, asks,
       box: task.box || 30,
-      aRange: task.aRange || [-6, 6],
+      // ползунок a — не уже, чем от −10 до 10 (заданный диапазон только расширяет его)
+      aRange: [Math.min(-10, (task.aRange || [])[0] ?? -10), Math.max(10, (task.aRange || [])[1] ?? 10)],
     };
   }
 
@@ -149,21 +150,26 @@ PL.solve = (function () {
   }
 
   // ---------- Пересечение двух кривых ----------
-  function intersect(P, Q, p, box, N, n2d) {
+  // Если одна из кривых явная (y = g(x) или x = g(y)), пересечение сводится к корням h(t) = 0.
+  function explicitH(P, Q, p) {
     if (Q.yOf || Q.xOf) { if (!(P.yOf || P.xOf) || P.sweep) [P, Q] = [Q, P]; }
     const okP = (x, y) => !P.dom || P.dom(x, y, p);
     const okQ = (x, y) => !Q.dom || Q.dom(x, y, p);
     if (P.yOf) {
-      const g = (t) => P.yOf(t, 0, p);
-      const r = roots1D(t => Q.F(t, g(t), p), t => { const y = g(t); return Number.isFinite(y) && okP(t, y) && okQ(t, y); }, -box, box, N);
-      return { inf: r.inf, pts: r.roots.map(t => [t, g(t)]) };
+      const xy = (t) => [t, P.yOf(t, 0, p)];
+      return { xy, h: (t) => Q.F(t, P.yOf(t, 0, p), p), valid: (t) => { const [x, y] = xy(t); return Number.isFinite(y) && okP(x, y) && okQ(x, y); } };
     }
     if (P.xOf) {
-      const g = (t) => P.xOf(0, t, p);
-      const r = roots1D(t => Q.F(g(t), t, p), t => { const x = g(t); return Number.isFinite(x) && okP(x, t) && okQ(x, t); }, -box, box, N);
-      return { inf: r.inf, pts: r.roots.map(t => [g(t), t]) };
+      const xy = (t) => [P.xOf(0, t, p), t];
+      return { xy, h: (t) => Q.F(P.xOf(0, t, p), t, p), valid: (t) => { const [x, y] = xy(t); return Number.isFinite(x) && okP(x, y) && okQ(x, y); } };
     }
-    return intersect2D(P, Q, p, box, n2d);
+    return null;
+  }
+  function intersect(P, Q, p, box, N, n2d) {
+    const e = explicitH(P, Q, p);
+    if (!e) return intersect2D(P, Q, p, box, n2d);
+    const r = roots1D(e.h, e.valid, -box, box, N);
+    return { inf: r.inf, pts: r.roots.map(e.xy) };
   }
 
   // Обе кривые неявные: идём по P (сетка, «марширующие квадраты»), ищем нули Q вдоль неё.
@@ -309,17 +315,81 @@ PL.solve = (function () {
     const M = opts.samples || 400, N = opts.N || 6000;
     const where = ct.asks.length === 1 ? ct.asks[0].where : null;
     const cnt = (p) => countWhere(solutions(ct, p, N, opts.n2d || 160), where, p);
-    const ys = [];
-    for (let i = 0; i <= M; i++) { const p = a0 + (a1 - a0) * i / M; ys.push({ p, n: cnt(p) }); }
-    // Отдельные точки (касания) проверяем точно: в особых значениях из opts.special
-    const special = (opts.special || []).filter(v => v > a0 && v < a1).map(p => ({ p, n: countWhere(solutions(ct, p), where, p) }));
     const segs = [];
-    for (const s of ys) {
-      const L = segs[segs.length - 1];
-      if (L && L.n === s.n) L.hi = s.p; else segs.push({ lo: s.p, hi: s.p, n: s.n });
+    for (let i = 0; i <= M; i++) {
+      const p = a0 + (a1 - a0) * i / M, n = cnt(p), L = segs[segs.length - 1];
+      if (L && L.n === n) L.hi = p; else segs.push({ lo: p, hi: p, n });
     }
-    for (let i = 0; i < segs.length - 1; i++) { const m = (segs[i].hi + segs[i + 1].lo) / 2; segs[i].hi = m; segs[i + 1].lo = m; }
-    return { segs, special };
+    // Кусок из одной точки сетки (сетка попала ровно в касание) — это отдельная точка, а не промежуток.
+    const special = [];
+    for (let i = segs.length - 2; i > 0; i--) {
+      const S = segs[i];
+      if (S.lo === S.hi && segs[i - 1].n !== S.n && segs[i + 1].n !== S.n) {
+        special.push({ p: S.lo, n: countWhere(solutions(ct, S.lo), where, S.lo) });
+        segs.splice(i, 1);
+        if (segs[i - 1].n === segs[i].n) { segs[i - 1].hi = segs[i].hi; segs.splice(i, 1); }
+      }
+    }
+    // Границу между кусками уточняем делением пополам. Если два решения рождаются/исчезают
+    // сразу — ищем точное a касания; если ровно там решений другое число — отдельная точка.
+    for (let i = 0; i < segs.length - 1; i++) {
+      const sl = segs[i].hi, sr = segs[i + 1].lo;
+      let lo = sl, hi = sr;
+      for (let k = 0; k < 45; k++) { const m = (lo + hi) / 2; if (cnt(m) === segs[i].n) lo = m; else hi = m; }
+      let b = (lo + hi) / 2;
+      const nl = segs[i].n, nr = segs[i + 1].n, jump = Math.abs(nr - nl);
+      let touch = null;
+      if (Number.isFinite(jump) && jump % 2 === 0) touch = nr > nl ? touchValue(ct, sr, sl, N) : touchValue(ct, sl, sr, N);
+      if (touch !== null) b = touch;
+      segs[i].hi = segs[i + 1].lo = b;
+      if (touch === null) continue;
+      const nb = countWhere(solutions(ct, b), where, b);
+      if (nb !== nl && nb !== nr) special.push({ p: b, n: nb });
+    }
+    return { segs, special: mergeSpecial(special, specialAt(ct, opts.special || [], range)) };
+  }
+  // Точное значение a, при котором две близкие точки пересечения сливаются (касание).
+  // aIn — точки ещё есть, aOut — уже нет. Ищем ноль «высоты» экстремума h между этими точками.
+  function touchValue(ct, aIn, aOut, N) {
+    for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
+      const eIn = explicitH(P, Q, aIn);
+      if (!eIn) continue;
+      const r = roots1D(eIn.h, eIn.valid, -ct.box, ct.box, N * 3).roots.sort((u, w) => u - w);
+      // самая близкая пара соседних корней
+      let best = null;
+      for (let k = 0; k + 1 < r.length; k++) if (!best || r[k + 1] - r[k] < best[1] - best[0]) best = [r[k], r[k + 1]];
+      if (!best || best[1] - best[0] > 3) continue;
+      const tm = (best[0] + best[1]) / 2, w = Math.max(4 * (best[1] - best[0]), 0.05);
+      const s = -Math.sign(eIn.h(tm));
+      if (!s) continue;
+      // φ(a) = min s·h(t) около tm: при aIn < 0, при aOut > 0
+      const phi = (a) => {
+        const e = explicitH(P, Q, a);
+        let lo = tm - w, hi = tm + w;
+        for (let k = 0; k < 90; k++) {
+          const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+          if (s * e.h(m1) < s * e.h(m2)) hi = m2; else lo = m1;
+        }
+        return s * e.h((lo + hi) / 2);
+      };
+      if (!(phi(aIn) < 0 && phi(aOut) > 0)) continue;
+      let u = aIn, v = aOut;
+      for (let k = 0; k < 60; k++) { const m = (u + v) / 2; if (phi(m) < 0) u = m; else v = m; }
+      return (u + v) / 2;
+    }
+    return null;
+  }
+
+  // Число решений точно в заданных значениях a (концы ответа). Элемент: число или {v, s} — значение и запись.
+  function specialAt(ct, list, [a0, a1]) {
+    const where = ct.asks.length === 1 ? ct.asks[0].where : null;
+    return list.map(x => (typeof x === "number" ? { v: x } : x)).filter(x => x.v > a0 && x.v < a1)
+      .map(x => ({ p: x.v, label: x.s, n: countWhere(solutions(ct, x.v), where, x.v) }));
+  }
+  function mergeSpecial(found, given) {
+    const out = [...given];
+    for (const f of found) if (!out.some(g => Math.abs(g.p - f.p) < 1e-6)) out.push(f);
+    return out.sort((u, w) => u.p - w.p);
   }
 
   // ---------- Проверка ответа задачи ----------
@@ -374,5 +444,5 @@ PL.solve = (function () {
     return out;
   }
 
-  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, verify, approx };
+  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, specialAt, mergeSpecial, verify, approx };
 })();
