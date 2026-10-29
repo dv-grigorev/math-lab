@@ -376,6 +376,16 @@ PL.expr = (function () {
     return n;
   }
 
+  // Система уравнений: фигурная скобка растягивается на всю высоту строк (дроби, корни)
+  const BRACE = `<svg class="brace" viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M11 1 C6 1 6 3 6 9 L6 41 C6 47 4 49.5 1 50 C4 50.5 6 53 6 59 L6 91 C6 97 6 99 11 99"
+      fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+  function systemHTML(rows) {
+    if (!rows || !rows.length) return "";
+    if (rows.length === 1) return `<p class="f">${formulaHTML(rows[0])}</p>`;
+    return `<div class="system f">${BRACE}<span class="rows">${rows.map(r => `<span>${formulaHTML(r)}</span>`).join("")}</span></div>`;
+  }
+
   // Текст с формулами в $…$ → HTML. Внутри $…$ можно «=», «<», «;», «,».
   function richText(text) {
     return text.replace(/\$([^$]+)\$/g, (_, f) => '<span class="f">' + formulaHTML(f) + "</span>");
@@ -398,5 +408,5 @@ PL.expr = (function () {
     }).join("").replace(/ ([;,]) /g, "$1 ").replace(/\s+/g, " ").trim();
   }
 
-  return { parse, compile, value, uses, simplify, subst, html, htmlWith, richText, formulaHTML, fmtNum, MINUS };
+  return { parse, compile, value, uses, simplify, subst, html, htmlWith, richText, formulaHTML, systemHTML, fmtNum, MINUS };
 })();

@@ -48,11 +48,7 @@
     $("stageHidden").hidden = on;
   }
 
-  function systemHTML(rows) {
-    if (!rows || !rows.length) return "";
-    if (rows.length === 1) return `<p class="f">${E.formulaHTML(rows[0])}</p>`;
-    return `<div class="system f"><span class="brace">{</span><span class="rows">${rows.map(r => `<span>${E.formulaHTML(r)}</span>`).join("")}</span></div>`;
-  }
+  const systemHTML = E.systemHTML;
 
   // ---------- Памятка ----------
   function renderMemo() {

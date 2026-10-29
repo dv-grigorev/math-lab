@@ -229,11 +229,7 @@
     clearTimeout(timer);
     timer = setTimeout(doPreview, now ? 0 : 450);
   }
-  function systemHTML(rows) {
-    if (!rows || !rows.length) return "";
-    if (rows.length === 1) return `<p class="f">${E.formulaHTML(rows[0])}</p>`;
-    return `<div class="system f"><span class="brace">{</span><span class="rows">${rows.map(r => `<span>${E.formulaHTML(r)}</span>`).join("")}</span></div>`;
-  }
+  const systemHTML = E.systemHTML;
   function doPreview() {
     const t = tasks[cur];
     if (!t) return;

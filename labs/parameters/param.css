@@ -33,8 +33,8 @@ svg text { font-family: var(--font); }
 .scene-btn { margin-top: 4px; }
 
 .system { display: inline-flex; align-items: stretch; gap: 6px; margin: 6px 0; font-size: 1.1em; max-width: 100%; overflow-x: auto; }
-.system .brace { font-size: 2.6em; line-height: .9; font-weight: 200; }
-.system .rows { display: grid; gap: 4px; align-content: center; }
+.system .brace { width: 12px; flex: none; min-height: 2.6em; }
+.system .rows { display: grid; gap: 8px; align-content: center; justify-items: start; padding: 3px 0; }
 
 .steps { display: grid; gap: 8px; margin: 10px 0; padding: 0; list-style: none; }
 .steps li { border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--muted); }
