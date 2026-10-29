@@ -266,15 +266,23 @@ PL.stage = function (opts0 = {}) {
   }
   $("play").addEventListener("click", () => {
     if (playing) return stopPlay();
-    const [a0, a1] = scene.range, dur = 7000, K = 300;
-    // Равномерно по картинке: время на кусок [a_i; a_i+1] пропорционально тому,
-    // насколько сдвигаются линии. Куски, где на экране ничего не видно, проходим быстро, но не мгновенно.
-    const as = [], cum = [0];
+    const [a0, a1] = scene.range, dur = 8000, K = 400;
+    // Время на кусок [a_i; a_i+1] пропорционально тому, насколько сдвигаются линии на экране,
+    // но: 1) сдвиг сглажен по соседним кускам — скорость меняется плавно, без рывков;
+    // 2) самый быстрый кусок не быстрее самого медленного больше чем в 3 раза —
+    //    там, где линия за краем окна, a бежит быстрее, но не «перескакивает».
+    const as = [];
     for (let i = 0; i <= K; i++) as.push(a0 + (a1 - a0) * i / K);
     const m = [];
     for (let i = 0; i < K; i++) m.push(shift(as[i], as[i + 1]));
-    const mean = m.reduce((u, w) => u + w, 0) / K || 1;
-    for (let i = 0; i < K; i++) cum.push(cum[i] + Math.max(m[i], 0.15 * mean));
+    const h = Math.max(3, Math.round(K / 25)), sm = [];
+    for (let i = 0; i < K; i++) {
+      let s = 0, c = 0;
+      for (let j = Math.max(0, i - h); j <= Math.min(K - 1, i + h); j++) { const wgt = h + 1 - Math.abs(i - j); s += m[j] * wgt; c += wgt; }
+      sm.push(s / c);
+    }
+    const top = Math.max(...sm) || 1, cum = [0];
+    for (let i = 0; i < K; i++) cum.push(cum[i] + Math.max(sm[i], top / 3));
     const total = cum[K], t0 = performance.now();
     $("play").textContent = "■ Стоп";
     const tick = (t) => {
