@@ -1,0 +1,43 @@
+# Публикация сайта: только из main и только если проверки прошли.
+# Если проверка упала, на сайте остаётся предыдущая рабочая версия.
+name: Публикация
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/check.yml
+
+  deploy:
+    name: Публикация на GitHub Pages
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      # На сайт попадают только файлы сайта: без тестов, ТЗ и служебных файлов.
+      - name: Собрать сайт
+        run: |
+          mkdir _site
+          cp -r index.html catalog.js shared labs _site/
+          find _site -name '*.md' -delete
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
