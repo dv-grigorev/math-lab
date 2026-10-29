@@ -392,7 +392,35 @@ PL.expr = (function () {
   function richText(text) {
     return text.replace(/\$([^$]+)\$/g, (_, f) => '<span class="f">' + formulaHTML(f) + "</span>");
   }
-  // Формула целиком: части между знаками сравнения/«;» печатаются красиво.
+  // Формула целиком: части между знаками сравнения/«;»/«,» печатаются красиво.
+  // Делим только вне скобок, поэтому точка «O_1(−5; 4)» и «(x_0; y_0)» остаются одним куском.
+  const SEP = ["<=", ">=", "!=", "≤", "≥", "≈", "⇒", "⇔", "=", "<", ">", ";", ",", " при ", " и "];
+  const SEP_HTML = { "<=": "≤", ">=": "≥", "!=": "≠", "<": "&lt;", ">": "&gt;" };
+  function splitTop(src) {
+    const out = [];
+    let depth = 0, cur = "";
+    for (let i = 0; i < src.length; i++) {
+      const c = src[i];
+      if ("([{".includes(c)) depth++;
+      if (")]}".includes(c)) depth--;
+      const sep = depth === 0 && SEP.find(sp => src.startsWith(sp, i) && !(sp === "," && /\d/.test(src[i + 1] || "")));
+      if (sep) { out.push(cur, sep); cur = ""; i += sep.length - 1; } else cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+  // Кусок формулы: выражение или точка «(x; y)» с необязательным именем перед ней («O_1(−5; 4)»)
+  function pieceHTML(p) {
+    const pt = p.trim().match(/^([A-Za-z](?:_\d+)?)?\s*\((.+)\)$/);
+    if (pt && splitTop(pt[2]).includes(";")) {
+      const coords = splitTop(pt[2]).filter((x, i) => i % 2 === 0).map(pieceHTML);
+      return (pt[1] ? html(parse(pt[1])) : "") + "(" + coords.join("; ") + ")";
+    }
+    try { return html(parse(p)); } catch (e) { return escapeText(p); }
+  }
+  function escapeText(p) {
+    return p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/-/g, MINUS);
+  }
   function formulaHTML(src) {
     // «a ∈ (1; 2] ∪ {3}» — справа множество
     const inSet = src.match(/^(.*?)\s*∈\s*(.+)$/);
@@ -400,15 +428,10 @@ PL.expr = (function () {
       const r = PL.sets.tryParse(inSet[2]);
       if (!r.error) return formulaHTML(inSet[1]) + " ∈ " + PL.sets.formatHTML(r.set);
     }
-    const parts = src.split(/(<=|>=|!=|=|<|>|≤|≥|≈|⇒|⇔|;|,(?!\d)| при | и )/);
-    return parts.map(p => {
-      const sym = { "<=": "≤", ">=": "≥", "!=": "≠", "=": "=", "<": "&lt;", ">": "&gt;", "≤": "≤", "≥": "≥", "≈": "≈", "⇒": "⇒", "⇔": "⇔", ";": ";", ",": "," }[p];
-      if (sym) return ` ${sym} `;
-      if (p === " при " || p === " и ") return p;
-      if (!p.trim()) return p;
-      try { return html(parse(p)); } catch (e) { return p.replace(/-/g, MINUS).replace(/sqrt\(([^()]+)\)/g, "√$1")
-        .replace(/\b([a-zA-Z])(?:_(\d+))?\b/g, (m, v, sub) => `<i>${v}</i>` + (sub ? `<sub>${sub}</sub>` : "")); }
-    }).join("").replace(/ ([;,]) /g, "$1 ").replace(/\s+/g, " ").trim();
+    return splitTop(src).map((p, i) => {
+      if (i % 2) return p.trim() === p ? (p === ";" || p === "," ? p + " " : ` ${SEP_HTML[p] || p} `) : p;
+      return p.trim() ? pieceHTML(p) : "";
+    }).join("").replace(/\s+/g, " ").trim();
   }
 
   return { parse, compile, value, uses, simplify, subst, html, htmlWith, richText, formulaHTML, systemHTML, fmtNum, MINUS };

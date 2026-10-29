@@ -55,8 +55,19 @@ PL.sets = (function () {
     for (let k = 2; k * k <= d; k++) if (d % (k * k) === 0) ok = false;
     if (ok) SQUAREFREE.push(d);
   }
-  function recognize(v) {
+  // Распознавание дорогое (~1 мс), а спрашивают одни и те же числа (подписи в каждом кадре) — запоминаем.
+  const memo = new Map();
+  // tol — насколько число может отличаться от точного (по умолчанию 1e-7)
+  function recognize(v, tol = 1e-7) {
     if (!Number.isFinite(v)) return null;
+    const key = v.toPrecision(13) + "|" + tol;
+    if (memo.has(key)) return memo.get(key);
+    if (memo.size > 5000) memo.clear();
+    const r = recognize0(v, tol);
+    memo.set(key, r);
+    return r;
+  }
+  function recognize0(v, tol) {
     let best = null;
     const take = (score, str) => { if (!best || score < best.score) best = { score, str }; };
     // (p + q√d)/n
@@ -66,7 +77,7 @@ PL.sets = (function () {
         if (d > 1) for (let q = 1; q <= 30; q++) qs.push(q, -q);
         for (const q of qs) {
           const p = Math.round(v * n - q * Math.sqrt(d));
-          if (Math.abs(p) > (q ? 200 : 5000) || Math.abs(v * n - p - q * Math.sqrt(d)) > 1e-7 * n) continue;
+          if (Math.abs(p) > (q ? 200 : 5000) || Math.abs(v * n - p - q * Math.sqrt(d)) > tol * n) continue;
           const sd = surd(p, q, d, n);
           take(sd.n + Math.abs(sd.q) + (sd.q ? sd.d / 4 : 0) + Math.abs(sd.p) / 8, surdStr(sd));
         }
@@ -82,7 +93,7 @@ PL.sets = (function () {
         for (let n = 1; n <= 6; n++) for (let m = 1; m <= 6; m++) {
           if (gcd(m, n) !== 1) continue;
           for (const sg of [1, -1]) {
-            if (Math.abs(v - sg * m * L / n) > 1e-8) continue;
+            if (Math.abs(v - sg * m * L / n) > tol / 10) continue;
             take(3 + m + n + k / 10, (sg < 0 ? "-" : "") + (m === 1 ? "" : m) + `${name}(${k})` + (n === 1 ? "" : "/" + n));
           }
         }
@@ -90,7 +101,7 @@ PL.sets = (function () {
     }
     // p·π/n
     for (let n = 1; n <= 12; n++) for (let p = -24; p <= 24; p++) {
-      if (!p || gcd(p, n) !== 1 || Math.abs(v - p * Math.PI / n) > 1e-8) continue;
+      if (!p || gcd(p, n) !== 1 || Math.abs(v - p * Math.PI / n) > tol / 10) continue;
       take(2 + Math.abs(p) + n, (p < 0 ? "-" : "") + (Math.abs(p) === 1 ? "" : Math.abs(p)) + "pi" + (n === 1 ? "" : "/" + n));
     }
     return best ? best.str : null;
@@ -102,6 +113,13 @@ PL.sets = (function () {
       .replace(/\b(lg|ln)\(([^()]+)\)/g, "$1$2")
       .replace(/sqrt\(([^()]+)\)/g, "√$1")
       .replace(/pi/g, "π").replace(/-/g, "−");
+  }
+  // Если v — приближение «школьного» числа (2√2, 4/9, log₂3), вернуть его точное значение, иначе null
+  function snap(v, tol = 1e-6) {
+    const r = recognize(v, tol * Math.max(1, Math.abs(v)));
+    if (!r) return null;
+    const x = value(r);
+    return Math.abs(x - v) <= tol * Math.max(1, Math.abs(v)) ? { v: x, s: r } : null;
   }
   // Точная запись числа (её можно разобрать формулой) или null
   function exact(v, given) {
@@ -217,7 +235,8 @@ PL.sets = (function () {
       if (p[0] === "{") {
         if (p[p.length - 1] !== "}") throw new Error(`Не закрыта фигурная скобка: «${p}»`);
         for (const x of splitList(p.slice(1, -1))) out.push(point(endpoint(x)));
-      } else if (p[0] === "(" || p[0] === "[") {
+      } else if ((p[0] === "(" || p[0] === "[") && !(p[0] === "(" && !/[;\]]/.test(p))) {
+        // промежуток; «(1 + √5)/2» без «;» — просто число, оно разберётся ниже
         const last = p[p.length - 1];
         if (last !== ")" && last !== "]") throw new Error(`Промежуток должен заканчиваться «)» или «]»: «${p}»`);
         const inner = splitList(p.slice(1, -1));
@@ -271,14 +290,25 @@ PL.sets = (function () {
     flush();
     return parts.join(" ∪ ");
   }
-  // Для показа: школьный минус, красивые корни и дроби.
+  // Для показа: собираем прямо из промежутков, каждый конец — формулой (корни, дроби, школьный минус).
   function formatHTML(set) {
-    return format(set).replace(/[^\s;{}()[\]∪]+(?:\s[+-]\s[^\s;{}()[\]∪]+)*/g, (tok) => {
-      if (/^[+-]?∞$/.test(tok) || tok === "∅") return tok.replace("-", MINUS);
-      try { return PL.expr.html(PL.expr.parse(tok)); } catch (e) { return tok; }
-    });
+    if (!set.length) return "∅";
+    const end = (s) => {
+      if (/^[+-]?∞$/.test(s.replace(/\s/g, ""))) return s.replace(/\s/g, "").replace("-", MINUS);
+      try { return PL.expr.html(PL.expr.parse(s)); } catch (e) { return s; }
+    };
+    const parts = [];
+    let points = [];
+    const flush = () => { if (points.length) { parts.push("{" + points.join("; ") + "}"); points = []; } };
+    for (const I of set) {
+      if (Math.abs(I.hi - I.lo) <= EPS) { points.push(end(I.loS)); continue; }
+      flush();
+      parts.push((I.loC ? "[" : "(") + end(I.loS) + "; " + end(I.hiS) + (I.hiC ? "]" : ")"));
+    }
+    flush();
+    return parts.join(" ∪ ");
   }
 
-  return { surd, surdStr, recognize, exact, plain, label, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
+  return { surd, surdStr, recognize, snap, exact, plain, label, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
     contains, normalize, union, intersect, minus, equal, parse, tryParse, format, formatHTML, boundaries, EPS };
 })();

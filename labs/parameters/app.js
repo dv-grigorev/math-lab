@@ -1,11 +1,10 @@
 // Страница тренажёра: подтемы, вкладки «Памятка / Разборы / Практика», сцена с ползунком a.
 (function () {
   const { urlState } = Lab;
-  const E = PL.expr, S = PL.sets, V = PL.solve;
+  const E = PL.expr, S = PL.sets;
   const $ = (id) => document.getElementById(id);
   const TOPICS = PL.topics;
   const rich = (t) => E.richText(t || "");
-  const num = (v) => (typeof v === "string" ? E.value(v) : v);
 
   const state = {
     topic: TOPICS.find(t => t.id === urlState.get("t", "")) || TOPICS[0],
@@ -282,14 +281,14 @@
       const [u, w] = diff[0];
       setA(Number.isFinite(u) && Number.isFinite(w) ? (u + w) / 2 : Number.isFinite(u) ? u + 0.5 : w - 0.5, false);
     } else draw();
-    renderSolution(t, right);
+    renderSolution(t);
   }
   // где ответы расходятся: [[lo, hi], ...]
   function diffRanges(A, B) {
     const d = S.union(S.minus(A, B), S.minus(B, A));
     return d.map(I => [I.lo, I.hi]);
   }
-  function renderSolution(t, right) {
+  function renderSolution(t) {
     const box = $("solution");
     if (!t.steps || !t.steps.length) { box.hidden = true; return; }
     box.hidden = false;

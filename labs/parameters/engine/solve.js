@@ -123,7 +123,7 @@ PL.solve = (function () {
       // aRange — диапазон, заданный вручную (иначе подбирается сам, см. fitRange);
       // search — где ищем особые значения a
       aRange: task.aRange ? [...task.aRange] : null,
-      search: [Math.min(-50, (task.aRange || [-50])[0]), Math.max(50, (task.aRange || [0, 50])[1])],
+      search: task.aRange ? [Math.min(-50, task.aRange[0]), Math.max(50, task.aRange[1])] : [-50, 50],
     };
   }
 
@@ -147,7 +147,7 @@ PL.solve = (function () {
     for (let i = 0; i <= N; i++) {
       const t = Math.sinh(u0 + i * du), dt = t - tPrev;
       tPrev = t;
-      let v = h(t);
+      const v = h(t);
       const ok = Number.isFinite(v) && valid(t);
       if (prevOk !== null && ok !== prevOk) {
         // граница области определения — уточняем и добавляем её как точку
@@ -158,12 +158,12 @@ PL.solve = (function () {
           if (mOk === prevOk) lo = m; else hi = m;
         }
         let tb = ok ? hi : lo, vb = h(tb), punct = false;
-        // Граница обычно «круглое» число (x = −3). Если в нём самом выражение не определено
+        // Граница — точное число (x = −3, x = √3). Если в нём самом выражение не определено
         // (0/0 у дроби с √(x + 3)), то это выколотая точка — корнем её не считаем.
-        const nice = Math.round(tb * 1e6) / 1e6;
-        if (Math.abs(nice - tb) < 1e-9) {
-          const vn = h(nice);
-          if (Number.isFinite(vn) && valid(nice)) { tb = nice; vb = vn; } else punct = true;
+        const ex = PL.sets.snap(tb, 1e-9);
+        if (ex) {
+          const vn = h(ex.v);
+          if (Number.isFinite(vn) && valid(ex.v)) { tb = ex.v; vb = vn; } else punct = true;
         }
         // Точку у границы всё равно ставим: между ней и соседней точкой сетки может быть
         // корень (смена знака). У выколотой границы она помечена — сама корнем не считается.
@@ -177,11 +177,10 @@ PL.solve = (function () {
       prevOk = ok;
     }
     const roots = [];
-    let zeroRun = 0, validRun = 0;
+    let zeroRun = 0;
     for (let i = 0; i < ts.length; i++) {
       const v = hs[i];
-      if (Number.isNaN(v)) { zeroRun = 0; validRun = 0; continue; }
-      validRun++;
+      if (Number.isNaN(v)) { zeroRun = 0; continue; }
       if (Math.abs(v) < TOL && !edge[i]) {
         zeroRun++;
         if (zeroRun > 20) return { inf: true, roots: [] };
@@ -412,11 +411,18 @@ PL.solve = (function () {
           touch = (u + w) / 2;
         }
       }
-      if (touch !== null) b = touch;
+      // Уточнение касания принимаем, только если оно там же, где граница по подсчёту:
+      // при a = 0 прямая может пройти через оба конца дуги сразу — это не касание.
+      if (touch !== null && Math.abs(touch - b) <= 1e-4 * (a1 - a0)) b = touch;
+      // Границы в школьных задачах — точные числа (−1, 4/9, 2√2): приближение заменяем точным,
+      // и уже в нём считаем решения. Если там их число другое, чем по обе стороны, — отдельная точка.
+      const ex = PL.sets.snap(b);
+      if (ex) b = ex.v;
       segs[i].hi = segs[i + 1].lo = b;
-      if (touch === null) continue;
+      segs[i].hiLabel = ex ? ex.s : null;
       const nb = countWhere(solutions(ct, b), where, b);
-      if (nb !== nl && nb !== nr) special.push({ p: b, n: nb });
+      segs[i].hiN = nb; // сколько решений ровно на границе
+      if (nb !== nl && nb !== nr) special.push({ p: b, n: nb, label: ex ? ex.s : undefined });
     }
     return { segs, special: mergeSpecial(special, specialAt(ct, opts.special || [], range)) };
   }
@@ -499,6 +505,24 @@ PL.solve = (function () {
     return bad.filter((x, i) => i === 0 || Math.abs(x.a - bad[i - 1].a) > 1e-6);
   }
 
+  // Ответ «по карте»: где выполняется условие (одно условие на число решений).
+  // Возвращает множество с точными концами там, где их удалось узнать, или null.
+  function answerFromMap(ct, m, range) {
+    if (ct.asks.length !== 1) return null;
+    const ok = (n) => askHolds(ct.asks[0], n);
+    const S = PL.sets, lab = (v, s) => ({ v, s: S.exact(v, s) || v.toPrecision(6) });
+    const parts = [];
+    m.segs.forEach((sg, i) => {
+      if (!ok(sg.n)) return;
+      const lo = i === 0 ? S.NINF : lab(sg.lo, m.segs[i - 1].hiLabel);
+      const hi = i === m.segs.length - 1 ? S.INF : lab(sg.hi, sg.hiLabel);
+      parts.push(S.iv(lo, hi, i > 0 && ok(m.segs[i - 1].hiN), i < m.segs.length - 1 && ok(sg.hiN)));
+    });
+    for (let i = 0; i < m.segs.length - 1; i++) if (ok(m.segs[i].hiN)) parts.push(S.point(lab(m.segs[i].hi, m.segs[i].hiLabel)));
+    for (const sp of m.special) if (ok(sp.n)) parts.push(S.point(lab(sp.p, sp.label)));
+    return S.normalize(parts);
+  }
+
   // ---------- Удобный диапазон a ----------
   // Грубо считаем решения на широком отрезке, берём все места, где их число меняется
   // (и концы ответа), и обрамляем их с запасом. Границы — «круглые» числа.
@@ -522,30 +546,5 @@ PL.solve = (function () {
     return [+r0.toPrecision(10), +r1.toPrecision(10)];
   }
 
-  // ---------- Приближённый ответ (подсказка в конструкторе) ----------
-  // Промежутки a в диапазоне range, где условие выполняется; концы уточняются делением пополам.
-  // Отдельные точки (касания) сеткой не ловятся — их проверяет verify по концам ответа.
-  function approx(ct, range, opts = {}) {
-    const [a0, a1] = range, M = opts.samples || 300, N = opts.N || 6000, n2d = opts.n2d || 160;
-    const ok = (p) => holds(ct, p, N, n2d);
-    const xs = [], vs = [];
-    for (let i = 0; i <= M; i++) { const p = a0 + (a1 - a0) * i / M; xs.push(p); vs.push(ok(p)); }
-    const edge = (lo, hi, vlo) => {
-      for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (ok(m) === vlo) lo = m; else hi = m; }
-      return (lo + hi) / 2;
-    };
-    const out = [];
-    let start = vs[0] ? { v: a0, open: true } : null;
-    for (let i = 1; i <= M; i++) {
-      if (vs[i] !== vs[i - 1]) {
-        const e = edge(xs[i - 1], xs[i], vs[i - 1]);
-        if (vs[i]) start = { v: e };
-        else { out.push({ lo: start.v, hi: e, loInf: !!start.open }); start = null; }
-      }
-    }
-    if (start) out.push({ lo: start.v, hi: a1, loInf: !!start.open, hiInf: true });
-    return out;
-  }
-
-  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, specialAt, mergeSpecial, verify, fitRange, approx };
+  return { compileTask, compileCurve, compileCond, solutions, countWhere, askHolds, holds, map, specialAt, mergeSpecial, verify, fitRange, answerFromMap };
 })();

@@ -35,7 +35,10 @@ PL.stage = function (opts0 = {}) {
       // диапазон a: заданный в задаче или подобранный по особым точкам
       scene.fit = ct.aRange || V.fitRange(ct, scene.special.map(b => b.v));
       setRange(scene.fit);
-    } else scene.map.special = V.mergeSpecial(scene.found, V.specialAt(ct, scene.special, scene.range));
+    } else {
+      scene.map.special = V.mergeSpecial(scene.found, V.specialAt(ct, scene.special, scene.range));
+      scene.marks = marks();
+    }
     const r = scene.range;
     let a = opts.a !== undefined ? num(opts.a) : task.a !== undefined ? num(task.a) : NaN;
     if (!Number.isFinite(a)) {
@@ -122,7 +125,7 @@ PL.stage = function (opts0 = {}) {
   const up = (e) => {
     ptrs.delete(e.pointerId);
     // остался один палец — продолжаем сдвиг от его текущего положения
-    for (const [id, P] of ptrs) P.w = world({ clientX: P.cx, clientY: P.cy });
+    for (const P of ptrs.values()) P.w = world({ clientX: P.cx, clientY: P.cy });
   };
   svg.addEventListener("pointerup", up);
   svg.addEventListener("pointercancel", up);
@@ -132,6 +135,7 @@ PL.stage = function (opts0 = {}) {
     scene.range = range;
     scene.map = V.map(scene.ct, range, { special: scene.special });
     scene.found = scene.map.special;
+    scene.marks = marks();
     buildSlider(range);
   }
   // «Шире / Уже / Подобрать» для оси a
@@ -160,22 +164,23 @@ PL.stage = function (opts0 = {}) {
     box.innerHTML = "";
     const span = a1 - a0, step = +Math.max(1e-4, Math.pow(10, Math.floor(Math.log10(span)) - 3)).toPrecision(1);
     // рядом с отдельной точкой (касанием) ползунок «прилипает» к ней — иначе в неё не попасть
-    const stick = (v) => { const sp = marks().find(m => Math.abs(m.p - v) <= 2 * step); return sp ? sp.p : v; };
+    const stick = (v) => { const sp = scene.marks.find(m => Math.abs(m.p - v) <= 2 * step); return sp ? sp.p : v; };
     slider = Lab.slider(box, { label: "Параметр <b><i>a</i></b>", min: a0, max: a1, step, value: a0, onInput: (v) => setA(stick(v), true) });
   }
-  // Особые значения a: отдельные точки (касания) и границы промежутков на оси
+  // Особые значения a: отдельные точки (касания) и границы промежутков на оси.
+  // Считаются один раз на карту (scene.marks), а не в каждом кадре.
   function marks() {
     const m = scene.map.special.map(s => ({ p: s.p, label: s.label }));
     for (let i = 0; i < scene.map.segs.length - 1; i++) {
-      const p = scene.map.segs[i].hi;
-      if (!m.some(x => Math.abs(x.p - p) < 1e-6)) m.push({ p });
+      const sg = scene.map.segs[i];
+      if (!m.some(x => Math.abs(x.p - sg.hi) < 1e-6)) m.push({ p: sg.hi, label: sg.hiLabel || undefined });
     }
     return m;
   }
   // клик по оси рядом с особой точкой — встаём точно в неё
   function snap(t) {
     const [a0, a1] = scene.range, tol = (a1 - a0) * 0.015;
-    const sp = marks().find(m => Math.abs(m.p - t) < tol);
+    const sp = scene.marks.find(m => Math.abs(m.p - t) < tol);
     return sp ? sp.p : t;
   }
 
@@ -184,7 +189,7 @@ PL.stage = function (opts0 = {}) {
     if (slider) {
       slider.set(a);
       // в особой точке пишем точное значение: «2√2», а не «2,828»
-      const mk = scene.map ? marks().find(m => Math.abs(m.p - a) < 1e-9) : null;
+      const mk = scene.marks ? scene.marks.find(m => Math.abs(m.p - a) < 1e-9) : null;
       slider.el.querySelector("output").textContent = mk ? PL.sets.label(mk.p, mk.label) : E.fmtNum(a);
     }
     draw();
@@ -198,12 +203,12 @@ PL.stage = function (opts0 = {}) {
     plot.render(ct, scene.view, a, { extras: scene.extras, highlight: scene.highlight, solutions: sol });
     // формулы с подставленным a
     // в особой точке подставляем точное a: «y = x + 2√2», а не «y = x + 2,828»
-    const mk = scene.map ? marks().find(m => Math.abs(m.p - a) < 1e-9) : null;
+    const mk = scene.marks ? scene.marks.find(m => Math.abs(m.p - a) < 1e-9) : null;
     const exact = mk ? S.exact(mk.p, mk.label) : null;
     $("eqs").innerHTML = ct.parts.map((part, pi) => part.filter(c => !c.sweep).map(c => `<span class="p${pi} f">${curveHTML(c.src, ct.plane, a, exact)}</span>`).join("")).join("");
     const where = ct.asks.length === 1 ? ct.asks[0].where : null;
     const n = V.countWhere(sol, where, a);
-    const ok = ct.asks.every(q => ({ "=": n === q.k, ">=": n >= q.k, "<=": n <= q.k, ">": n > q.k, "<": n < q.k, "!=": n !== q.k })[q.op]);
+    const ok = ct.asks.every(q => V.askHolds(q, V.countWhere(sol, q.where, a)));
     const what = ct.plane === "xa" ? "Корней" : "Решений";
     $("count").innerHTML = `${what}${where ? " (с условием)" : ""}: <b>${n === Infinity ? "бесконечно много" : n}</b>` +
       (ok ? ` <span style="color:var(--good)">— подходит под условие</span>` : "");

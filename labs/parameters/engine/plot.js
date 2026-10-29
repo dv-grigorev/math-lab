@@ -2,8 +2,16 @@
 PL.plot = (function () {
   const NS = "http://www.w3.org/2000/svg";
   const { fmtNum } = PL.expr;
-  const css = () => getComputedStyle(document.documentElement);
-  const C = (n) => css().getPropertyValue(n).trim();
+  // Цвета темы. getComputedStyle дорогой, поэтому читаем все цвета один раз за кадр (fresh()),
+  // а не на каждую линию сетки; тема меняется — следующий кадр прочитает новые.
+  const VARS = ["--ink", "--muted", "--panel", "--grid", "--axis", "--accent", "--warm", "--good", "--ghost", "--target"];
+  let colors = {};
+  function fresh() {
+    const cs = getComputedStyle(document.documentElement);
+    colors = {};
+    for (const v of VARS) colors[v] = cs.getPropertyValue(v).trim();
+  }
+  const C = (n) => (n in colors ? colors[n] : (fresh(), colors[n]));
   const COUNT_COLORS = ["--ghost", "--accent", "--good", "--warm", "--target"];
   const countColor = (n) => (n === Infinity ? C("--ink") : C(COUNT_COLORS[Math.min(n, 4)]));
 
@@ -31,6 +39,7 @@ PL.plot = (function () {
     let geom = null;
 
     function render(ct, view, a, opts = {}) {
+      fresh();
       const [X0, X1] = view.x, [Y0, Y1] = view.y;
       const W = 600, H = Math.round(600 * (Y1 - Y0) / (X1 - X0)), PAD = 18;
       const k = (W - 2 * PAD) / (X1 - X0);
@@ -89,8 +98,13 @@ PL.plot = (function () {
       }
     }
 
+    const compiled = new Map(); // формулы построений разбираем один раз, а не в каждом кадре
     function drawExtra(ex, a, parent, sx, sy) {
-      const v = (s) => (typeof s === "number" ? s : PL.expr.compile(PL.expr.parse(String(s)), { x: "x", y: "y", a: "p" })(0, 0, a));
+      const v = (s) => {
+        if (typeof s === "number") return s;
+        if (!compiled.has(s)) compiled.set(s, PL.expr.compile(PL.expr.parse(String(s)), { x: "x", y: "y", a: "p" }));
+        return compiled.get(s)(0, 0, a);
+      };
       const color = C(ex.color || "--target");
       if (ex.type === "point") {
         const x = v(ex.x), y = v(ex.y);
@@ -102,7 +116,8 @@ PL.plot = (function () {
           "stroke-dasharray": ex.dashed === false ? "none" : "6 5" }, parent);
         if (ex.label) label(ex.label, (sx(x1) + sx(x2)) / 2, (sy(y1) + sy(y2)) / 2, color, parent, ex.anchor);
       } else if (ex.type === "curve") {
-        const cv = PL.solve.compileCurve(ex.eq, "xy");
+        if (!compiled.has(ex.eq)) compiled.set(ex.eq, PL.solve.compileCurve(ex.eq, "xy"));
+        const cv = compiled.get(ex.eq);
         el("path", { d: curvePath(cv, a, geomView(), sx, sy), fill: "none", stroke: color, "stroke-width": 2.5,
           "stroke-dasharray": ex.dashed ? "6 5" : "none" }, parent);
       } else if (ex.type === "label") {
@@ -150,12 +165,21 @@ PL.plot = (function () {
       }
       pts.sort((u, w) => u - w);
       function xy(t) { return cv.yOf ? [t, cv.yOf(t, 0, a)] : [cv.xOf(0, t, a), t]; }
+      // Разрыв (асимптота) между соседними точками: значение в середине не лежит между
+      // значениями на концах — функция «улетает» через бесконечность, линию не соединяем.
+      const val = (t) => (cv.yOf ? cv.yOf(t, 0, a) : cv.xOf(0, t, a));
+      const broken = (t1, v1, t2, v2) => {
+        if (Math.abs(v2 - v1) < 0.05 * span) return false;
+        const vm = val((t1 + t2) / 2);
+        return !Number.isFinite(vm) || vm < Math.min(v1, v2) - 1e-9 || vm > Math.max(v1, v2) + 1e-9;
+      };
+      let prevT = null;
       for (const t of pts) {
         const [x, y] = xy(t);
         const good = ok(x, y) && !far(y, Y0, Y1) && !far(x, X0, X1);
-        const jump = prev && Math.abs((cv.yOf ? y - prev[1] : x - prev[0])) > 2 * span;
-        if (!good || jump) pen = false;
-        if (good) { d += (pen ? "L" : "M") + sx(x).toFixed(1) + " " + sy(y).toFixed(1); pen = true; prev = [x, y]; }
+        const v = cv.yOf ? y : x;
+        if (!good || (pen && broken(prevT, prev, t, v))) pen = false;
+        if (good) { d += (pen ? "L" : "M") + sx(x).toFixed(1) + " " + sy(y).toFixed(1); pen = true; prev = v; prevT = t; }
       }
       return d;
     }
@@ -176,10 +200,10 @@ PL.plot = (function () {
           const [ax, ay, fa] = c[k], [bx, by, fb] = c[(k + 1) % 4];
           if (!Number.isFinite(fa) || !Number.isFinite(fb)) continue;
           if ((fa <= 0 && fb > 0) || (fa > 0 && fb <= 0)) {
-            const s = fa / (fa - fb);
-            // большой скачок функции — это разрыв, а не кривая
-            if (Math.abs(fa - fb) > 1e6) continue;
-            cr.push([ax + s * (bx - ax), ay + s * (by - ay)]);
+            const s = fa / (fa - fb), px = ax + s * (bx - ax), py = ay + s * (by - ay);
+            // Знак сменился через полюс (1/x), а не через ноль: в найденной точке |F| не маленький
+            if (!(Math.abs(f(px, py)) <= Math.max(Math.abs(fa), Math.abs(fb)))) continue;
+            cr.push([px, py]);
           }
         }
         for (let k = 0; k + 1 < cr.length; k += 2) {
@@ -197,6 +221,7 @@ PL.plot = (function () {
     let st = null;
     const W = 600, PAD = 22;
     function render(range, data, a, rows = [], diff = null) {
+      fresh();
       const [A0, A1] = range;
       const H = 86 + rows.length * 30;
       const sx = (t) => PAD + (t - A0) / (A1 - A0) * (W - 2 * PAD);
@@ -241,7 +266,7 @@ PL.plot = (function () {
           const b = data.segs[i].hi;
           if (data.special.some(s => Math.abs(s.p - b) < 1e-6)) continue;
           el("line", { x1: sx(b), y1: Y - 8, x2: sx(b), y2: Y + 8, stroke: C("--ink"), "stroke-width": 2 }, svg);
-          if (free(sx(b))) text(sx(b), PL.sets.label(b), C("--ink"));
+          if (free(sx(b))) text(sx(b), PL.sets.label(b, data.segs[i].hiLabel), C("--ink"));
         }
       }
       rows.forEach((r, i) => drawSet(r, 106 + i * 30, sx, A0, A1));

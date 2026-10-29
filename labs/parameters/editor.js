@@ -260,20 +260,18 @@
   function runCheck(t, ap) {
     let ct;
     try { ct = V.compileTask(t); } catch (e) { return; }
-    const R = stage.s.range;
-    const approx = V.approx(ct, R);
-    const approxTxt = approx.length
-      ? approx.map(I => I.hi - I.lo < (R[1] - R[0]) / 500 ? `{≈ ${E.fmtNum((I.lo + I.hi) / 2)}}`
-          : `(${I.loInf ? "…" : "≈ " + E.fmtNum(I.lo)}; ${I.hiInf ? "…" : "≈ " + E.fmtNum(I.hi)})`).join(" ∪ ")
-      : "таких значений нет";
-    const hint = `<p>По графику, приближённо, для a от ${E.fmtNum(R[0])} до ${E.fmtNum(R[1])}: ${approxTxt}
-      («…» — промежуток идёт до края диапазона). Отдельные значения (касания) так не видны — их проверяем по концам вашего ответа.</p>`;
+    // Ответ «по графику» — из уже посчитанной оси a, с точными концами (−1, 4/9, 3 + √65)
+    const R = stage.s.range, fromMap = V.answerFromMap(ct, stage.s.map, R);
+    const hint = fromMap
+      ? `<p>По графику (a от ${E.fmtNum(R[0])} до ${E.fmtNum(R[1])}; бесконечные концы — значит, до края диапазона):
+        <span class="f">a ∈ ${S.formatHTML(fromMap)}</span>.</p>`
+      : "<p>Условий несколько — ответ по графику смотрите на оси a под графиком.</p>";
     if (ap.error) { $("check").innerHTML = `<div class="check-box wait">Ответ ещё не введён.${hint}</div>`; return; }
     const bad = V.verify(t, ap.set);
     if (!bad.length) {
       setStatus(t, "ok");
       $("check").innerHTML = `<div class="check-box ok"><b>✓ Ответ сходится с подсчётом.</b>
-        <p>Проверены концы промежутков ответа, точки между ними и частая сетка значений a.</p>${hint}</div>`;
+        <p>Проверены концы промежутков ответа, точки между ними, частая сетка значений a и все найденные касания.</p>${hint}</div>`;
     } else {
       setStatus(t, "bad");
       const items = bad.slice(0, 5).map(b => `<li>при a = ${S.label(b.a)}: по вашему ответу ${b.want ? "подходит" : "не подходит"}, а по графику — ${b.got ? "подходит" : "не подходит"}</li>`).join("");
