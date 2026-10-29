@@ -90,14 +90,15 @@
             <label><input type="radio" name="plane" value="xa"> в плоскости (x; a)</label>
           </div>
         </div>
-        <label class="fld"><span id="lbl-p1">Неподвижная часть (синяя)</span>
+        <label class="fld"><span id="lbl-p1">Первая часть (синяя)</span>
           <textarea id="f-p1" rows="2"></textarea>
           <span class="hint" id="hint-p1">По одной линии в строке: <code>x^2 + y^2 = 4</code>, <code>y = sqrt(4 - x^2)</code>,
-            <code>y = 2 - |x| при |x| &lt;= 2</code>. Несколько строк — объединение линий.</span>
+            <code>y = 2 - |x| при |x| &lt;= 2</code>. Несколько строк — объединение линий. Может зависеть от a.</span>
         </label>
-        <label class="fld" id="wrap-p2"><span>Подвижная часть (оранжевая)</span>
+        <label class="fld" id="wrap-p2"><span>Вторая часть (оранжевая)</span>
           <textarea id="f-p2" rows="2"></textarea>
-          <span class="hint">Обычно зависит от a: <code>y = x + a</code>, <code>y = a(x + 3)</code>, <code>x^2 + y^2 = a</code>.</span>
+          <span class="hint">Обычно зависит от a: <code>y = x + a</code>, <code>y = a(x + 3)</code>, <code>x^2 + y^2 = a</code>.
+            От a могут зависеть <b>обе</b> части — например, <code>(x - a)^2 + y^2 = 1</code> и <code>x^2 + (y - a)^2 = 1</code>: тогда двигаются обе линии.</span>
         </label>
 
         <label class="fld">Сколько решений нужно

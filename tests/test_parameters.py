@@ -101,3 +101,32 @@ def test_editor_roundtrip(browser, base_url):
     check.close()
     task = bank[-1]
     assert task["plane"] == "xa" and task["answer"] == "(0; 4)" and task["eq"] == ["a = |x^2 - 4|"]
+
+
+# Контрольные задачи движка с заранее известными ответами (в т. ч. когда двигаются обе линии).
+ENGINE_CASES = [
+    ({"eq": ["x^2+y^2=4", "y=x+a"], "ask": "=2", "aRange": [-5, 5]}, "(-2√2; 2√2)"),
+    ({"eq": ["y = sqrt(4-x^2)", "y=x+a"], "ask": "=1", "aRange": [-5, 5]}, "[-2; 2) ∪ {2√2}"),
+    ({"eq": ["y=(a-2)x", "y=a^2-4"], "ask": "inf", "aRange": [-5, 5]}, "{2}"),
+    ({"eq": ["y=x^2-2a x+a^2-4", "y=0"], "ask": "=2 при x > 1", "aRange": [-5, 8]}, "(3; +∞)"),
+    ({"plane": "xa", "eq": ["a = |x^2 - 4|"], "ask": "=3", "aRange": [-2, 8]}, "{4}"),
+    ({"eq": ["x^2+y^2=4", "(x-a)^2+y^2=1"], "ask": "=1", "aRange": [-5, 5]}, "{-3; -1; 1; 3}"),
+    ({"eq": [["y = 2 - |x| при |x| <= 2", "y = |x| - 2 при |x| <= 2"], "x^2+y^2=a"], "ask": "=8", "aRange": [-1, 6]}, "(2; 4)"),
+    # обе линии зависят от a
+    ({"eq": ["x^2 + (y - a)^2 = 1", "(x - a)^2 + y^2 = 1"], "ask": "=2", "aRange": [-3, 3]}, "(-√2; 0) ∪ (0; √2)"),
+    ({"eq": ["x^2 + (y - a)^2 = 1", "(x - a)^2 + y^2 = 1"], "ask": "inf", "aRange": [-3, 3]}, "{0}"),
+    ({"eq": ["y = x^2 - a", "y = a x"], "ask": "=1", "aRange": [-6, 2]}, "{-4; 0}"),
+    ({"eq": ["y = a x + 1", "y = (2 - a) x + a"], "ask": "inf", "aRange": [-3, 3]}, "{1}"),
+]
+
+
+def test_engine_cases(browser, base_url):
+    page = browser.new_page()
+    page.goto(f"{base_url}/labs/parameters/index.html", wait_until="networkidle")
+    for task, answer in ENGINE_CASES:
+        bad = page.evaluate("([t, ans]) => PL.solve.verify(t, PL.sets.parse(ans).set)", [task, answer])
+        assert not bad, f"{task['eq']} {task['ask']}: ответ {answer} не сходится: {bad[:3]}"
+        # и неверный ответ должен ловиться
+        wrong = page.evaluate("([t, ans]) => PL.solve.verify(t, PL.sets.parse(ans).set).length", [task, "(-100; 100)"])
+        assert wrong, f"{task['eq']}: заведомо неверный ответ не пойман"
+    page.close()

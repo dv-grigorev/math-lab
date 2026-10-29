@@ -150,10 +150,10 @@
   function planeUI() {
     const xa = document.querySelector("input[name=plane]:checked").value === "xa";
     $("wrap-p2").hidden = xa;
-    $("lbl-p1").textContent = xa ? "Линии в плоскости (x; a)" : "Неподвижная часть (синяя)";
+    $("lbl-p1").textContent = xa ? "Линии в плоскости (x; a)" : "Первая часть (синяя)";
     $("hint-p1").innerHTML = xa
       ? "Выразите a через x: <code>a = |x^2 - 4|</code>, <code>a = x^2 - 2x при x &gt;= 0</code>. Прямая a = const нарисуется сама."
-      : "По одной линии в строке: <code>x^2 + y^2 = 4</code>, <code>y = sqrt(4 - x^2)</code>, <code>y = 2 - |x| при |x| &lt;= 2</code>. Несколько строк — объединение линий.";
+      : "По одной линии в строке: <code>x^2 + y^2 = 4</code>, <code>y = sqrt(4 - x^2)</code>, <code>y = 2 - |x| при |x| &lt;= 2</code>. Несколько строк — объединение линий. Может зависеть от a.";
   }
 
   function readForm() {

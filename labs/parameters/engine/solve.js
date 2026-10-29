@@ -220,6 +220,8 @@ PL.solve = (function () {
     // иначе погрешность сетки рядом с касанием даёт ложные точки.
     for (const [ax, ay, bx, by] of crossings) {
       let A = proj(ax, ay), B = proj(bx, by), gA = G(...A), gB = G(...B);
+      // кривые совпадают на целом куске — решений бесконечно много
+      if (Math.abs(gA) < TOL && Math.abs(gB) < TOL) { if (ok(...A)) zeroCells++; continue; }
       if (Math.abs(gA) < TOL) { if (ok(...A)) pts.push(A); continue; }
       if (Math.sign(gA) === Math.sign(gB)) { near.push([(ax + bx) / 2, (ay + by) / 2, bx - ax, by - ay]); continue; }
       for (let k = 0; k < 50; k++) {
@@ -232,6 +234,12 @@ PL.solve = (function () {
     for (const [mx, my, tx, ty] of near) {
       const tl = Math.hypot(tx, ty) || 1, ux = tx / tl, uy = ty / tl;
       const phi = (s) => { const [x, y] = proj(mx + s * ux, my + s * uy); return Math.abs(G(x, y)); };
+      // Q лежит на P целым куском (кривые совпадают) — это не касание, а бесконечно много решений
+      if (phi(-d / 2) < TOL && phi(0) < TOL && phi(d / 2) < TOL) {
+        const [x, y] = proj(mx, my);
+        if (ok(x, y)) zeroCells++;
+        continue;
+      }
       let lo = -2 * d, hi = 2 * d;
       for (let k = 0; k < 70; k++) {
         const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
