@@ -2,14 +2,10 @@
 
 Запуск: python -m pytest tests -v
 """
-import functools
-import http.server
 import re
-import threading
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 WIDTHS = [375, 1280]
@@ -25,24 +21,6 @@ def lab_dirs():
 
 
 SLUGS = catalog_slugs()
-
-
-@pytest.fixture(scope="session")
-def base_url():
-    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(ROOT))
-    handler.log_message = lambda *a: None
-    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    threading.Thread(target=server.serve_forever, daemon=True).start()
-    yield f"http://127.0.0.1:{server.server_port}"
-    server.shutdown()
-
-
-@pytest.fixture(scope="session")
-def browser():
-    with sync_playwright() as p:
-        b = p.chromium.launch()
-        yield b
-        b.close()
 
 
 def open_page(browser, url, width):
@@ -123,7 +101,10 @@ def test_lab(browser, base_url, slug, width):
         if c.is_visible() and c.is_enabled():
             c.click()
 
-    page.get_by_role("button", name="Сбросить").first.click()
+    # кнопки могли переключить вид страницы (вкладки) — жмём «Сбросить», если он виден
+    reset = page.get_by_role("button", name="Сбросить").locator("visible=true")
+    if reset.count():
+        reset.first.click()
     page.wait_for_timeout(100)
     assert_no_horizontal_scroll(page)
     assert not errors, "\n".join(errors)

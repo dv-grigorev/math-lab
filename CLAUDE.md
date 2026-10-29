@@ -45,6 +45,18 @@
 - Прогнать автопроверки: `python -m pytest tests -v` (нужны пакеты из
   `tests/requirements.txt` и `python -m playwright install chromium`).
 
+## Тренажёр «Задачи с параметром» (labs/parameters)
+- ТЗ — `labs/parameters/spec.md`. Подтема = файл `topics/<id>.js`
+  (`PL.topics.push({ memo, tasks, examples, generators })`), подключается в `index.html`.
+- Движок: `engine/expr.js` (формулы по-школьному), `sets.js` (ответы-множества,
+  точные числа (p + q√d)/n), `solve.js` (численный подсчёт решений, карта ответа,
+  проверка ответа), `plot.js` (рисование).
+- Задача: `eq` — две части (кривые `y = …`, `x = …` или неявные), `ask` — `=2`,
+  `>=1`, `inf`, `=1 при x > 0`; `plane: "xa"` — метод в плоскости (x; a).
+- Задачи учителя — `bank/teacher.js`. Тексты пишет Claude, учитель правит.
+- `tests/test_parameters.py` сверяет каждый ответ (разборы, генераторы × 30,
+  банк) с численным подсчётом. Неверный ответ блокирует публикацию.
+
 ## Ветки и публикация
 - `main` — опубликованный сайт (https://dv-grigorev.github.io/math-lab/).
   Напрямую в `main` не коммитить: ветка защищена, изменения попадают
