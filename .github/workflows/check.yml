@@ -1,0 +1,25 @@
+# Проверка тренажёров: на каждый push в dev и на каждый pull request в main.
+# Пока проверка не пройдена, GitHub не даст влить изменения в main.
+name: Проверка
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+jobs:
+  test:
+    name: Проверка тренажёров
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tests/requirements.txt
+      - run: pip install -r tests/requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m pytest tests -v
