@@ -110,7 +110,8 @@ PL.expr = (function () {
           const op = toks[pos++].v;
           l = { t: "bin", op, l, r: unary() };
         } else if (startsOperand()) {
-          l = { t: "bin", op: "*", l, r: power(), implicit: true };
+          const paren = isOp("(");
+          l = { t: "bin", op: "*", l, r: power(), implicit: true, paren };
         } else break;
       }
       return l;
@@ -328,9 +329,11 @@ PL.expr = (function () {
         // умножение; «−2√2», а не «(−2)√2»
         if (n.l.t === "neg") return MINUS + html({ ...n, l: n.l.a });
         if (n.l.t === "num" && n.l.v < 0) return MINUS + html({ ...n, l: { t: "num", v: -n.l.v } });
-        const l = side(n.l, 2), r = side(n.r, 2.5);
+        // f(M), a(x + 3): скобки, написанные автором, сохраняем; явное «·» тоже
+        const l = side(n.l, 2), r = n.paren ? wrap(html(n.r)) : side(n.r, 2.5);
         const rootLeft = n.l.t === "fn" && n.l.f === "sqrt" || (n.l.t === "bin" && n.l.op === "*" && n.l.r.t === "fn" && n.l.r.f === "sqrt");
-        return l + (leadsWithNumber(n.r) || rootLeft ? "·" : "") + r;
+        const dot = !n.implicit || (!n.paren && (leadsWithNumber(n.r) || rootLeft));
+        return l + (dot ? "·" : "") + r;
       }
     }
   }

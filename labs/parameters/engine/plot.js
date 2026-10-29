@@ -4,7 +4,8 @@ PL.plot = (function () {
   const { fmtNum } = PL.expr;
   // Цвета темы. getComputedStyle дорогой, поэтому читаем все цвета один раз за кадр (fresh()),
   // а не на каждую линию сетки; тема меняется — следующий кадр прочитает новые.
-  const VARS = ["--ink", "--muted", "--panel", "--grid", "--axis", "--accent", "--warm", "--good", "--ghost", "--target"];
+  const VARS = ["--ink", "--muted", "--panel", "--grid", "--axis", "--accent", "--warm", "--good", "--ghost", "--target",
+    "--n5", "--n6", "--n7", "--n8"];
   let colors = {};
   function fresh() {
     const cs = getComputedStyle(document.documentElement);
@@ -12,8 +13,9 @@ PL.plot = (function () {
     for (const v of VARS) colors[v] = cs.getPropertyValue(v).trim();
   }
   const C = (n) => (n in colors ? colors[n] : (fresh(), colors[n]));
-  const COUNT_COLORS = ["--ghost", "--accent", "--good", "--warm", "--target"];
-  const countColor = (n) => (n === Infinity ? C("--ink") : C(COUNT_COLORS[Math.min(n, 4)]));
+  // цвет числа решений на оси a: 0, 1, 2, … 8 и больше; ∞ — цвет текста
+  const COUNT_COLORS = ["--ghost", "--accent", "--good", "--warm", "--target", "--n5", "--n6", "--n7", "--n8"];
+  const countColor = (n) => (n === Infinity ? C("--ink") : C(COUNT_COLORS[Math.min(n, 8)]));
 
   function el(tag, attrs, parent) {
     const e = document.createElementNS(NS, tag);

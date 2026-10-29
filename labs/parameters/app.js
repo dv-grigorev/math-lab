@@ -6,6 +6,7 @@
   const TOPICS = PL.topics;
   const rich = (t) => E.richText(t || "");
 
+  const hasMemo = (t) => t.memo && t.memo.length > 0;
   const state = {
     topic: TOPICS.find(t => t.id === urlState.get("t", "")) || TOPICS[0],
     tab: ["memo", "examples", "practice"].includes(urlState.get("tab", "")) ? urlState.get("tab", "") : "memo",
@@ -29,13 +30,17 @@
       b.addEventListener("click", () => { state.topic = t; state.ex = 0; state.step = 0; state.memo = 0; state.taskKey = null; render(); });
       $("topics").appendChild(b);
     }
-    for (const b of $("tabs").querySelectorAll(".chip")) b.setAttribute("aria-pressed", b.dataset.tab === state.tab);
+    for (const b of $("tabs").querySelectorAll(".chip")) {
+      b.setAttribute("aria-pressed", b.dataset.tab === state.tab);
+      b.hidden = b.dataset.tab === "memo" && !hasMemo(state.topic); // подтема без памятки — только разборы и практика
+    }
   }
   for (const b of $("tabs").querySelectorAll(".chip")) {
     b.addEventListener("click", () => { state.tab = b.dataset.tab; render(); });
   }
 
   function render() {
+    if (state.tab === "memo" && !hasMemo(state.topic)) state.tab = "examples";
     document.querySelector(".pl").dataset.tab = state.tab;
     renderNav();
     showStage(true);
@@ -146,7 +151,7 @@
     const [kind, id, seed] = key.split(".");
     if (kind === "g") {
       const g = state.topic.generators.find(g => g.id === id);
-      return g ? { ...g.make(rng(+seed)), source: "Тренировочная: " + g.title.toLowerCase() } : null;
+      return g ? { ...g.make(rng(+seed)), source: "Тренировочная: " + g.title[0].toLowerCase() + g.title.slice(1) } : null;
     }
     const t = PL.bank.find(t => String(t.id) === id && t.topic === state.topic.id);
     return t ? { ...t, source: "Из банка задач" } : null;
@@ -226,7 +231,7 @@
     $("giveup").addEventListener("click", () => reveal(null));
     $("another").addEventListener("click", nextTask);
 
-    setScene(t, { answer: t.answer, extras: [] });
+    setScene(t, { answer: t.answer });
     showStage(state.checked || state.peek);
     if (state.checked) reveal(state.userSet);
   }

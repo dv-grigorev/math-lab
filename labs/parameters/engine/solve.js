@@ -119,7 +119,7 @@ PL.solve = (function () {
     return {
       task, plane, parts, asks,
       box: task.box || 30,        // квадрат поиска для двух неявных кривых
-      box1D: task.box || 1e4,     // если одна кривая явная — ищем намного дальше
+      box1D: task.box || 1e7,     // если одна кривая явная — ищем намного дальше (точки, уходящие на бесконечность)
       // aRange — диапазон, заданный вручную (иначе подбирается сам, см. fitRange);
       // search — где ищем особые значения a
       aRange: task.aRange ? [...task.aRange] : null,
@@ -138,7 +138,7 @@ PL.solve = (function () {
 
   // ---------- Корни функции одной переменной ----------
   // Точки сетки: t = sinh(u), u — равномерно. Около нуля шаг ~0,001, к краям растёт,
-  // так что ищем решения хоть до |t| = 10 000 и не теряем далёкие точки пересечения.
+  // так что ищем решения хоть до |t| = 10⁷ и не теряем далёкие точки пересечения.
   function roots1D(h, valid, t0, t1, N) {
     const u0 = Math.asinh(t0), du = (Math.asinh(t1) - u0) / N;
     const ts = [], hs = [], edge = []; // edge[i] — точка у выколотой границы: сама корнем не бывает
@@ -227,7 +227,7 @@ PL.solve = (function () {
     }
     return null;
   }
-  function intersect(P, Q, p, box, N, n2d, box1D = 1e4) {
+  function intersect(P, Q, p, box, N, n2d, box1D = 1e7) {
     const e = explicitH(P, Q, p);
     if (!e) return intersect2D(P, Q, p, box, n2d);
     const r = roots1D(e.h, e.valid, -box1D, box1D, N);

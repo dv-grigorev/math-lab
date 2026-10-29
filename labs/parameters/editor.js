@@ -4,7 +4,7 @@
   const $ = (id) => document.getElementById(id);
   const rich = (t) => E.richText(t || "");
   const DRAFT = "pl-editor-draft-v1";
-  const PREFIX = { "circle-line": "cl" };
+  const PREFIX = { "circle-line": "cl", "quad-roots": "qr", "graph-xy": "gx" };
   const ASK_CHIPS = ["=1", "=2", ">=1", "=0", "inf", "=2 при x > 0"];
   const HEADER = `// Банк задач учителя. Удобнее всего править через «Конструктор задач» (editor.html):
 // он проверяет ответ и сохраняет этот файл целиком.

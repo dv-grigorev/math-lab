@@ -1,3 +1,7 @@
+/* Цвета числа решений 5–8 на оси a (0–4 берутся из общей палитры) */
+:root { --n5: #c2410c; --n6: #0e7490; --n7: #a16207; --n8: #be185d; }
+@media (prefers-color-scheme: dark) { :root { --n5: #fb923c; --n6: #22d3ee; --n7: #facc15; --n8: #f472b6; } }
+
 /* Общие стили тренажёра «Задачи с параметром» и конструктора задач. */
 .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .85em; line-height: 1.15; }
 .frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 3px; }

@@ -47,7 +47,10 @@
 
 ## Тренажёр «Задачи с параметром» (labs/parameters)
 - ТЗ — `labs/parameters/spec.md`. Подтема = файл `topics/<id>.js`
-  (`PL.topics.push({ memo, tasks, examples, generators })`), подключается в `index.html`.
+  (`PL.topics.push({ memo, tasks, examples, generators })`), подключается в `index.html`
+  и `editor.html`. Сейчас: `quad-roots`, `circle-line`, `graph-xy` (у неё `memo: []` —
+  вкладка «Памятка» скрыта). Генератор возвращает задачу с точным ответом (`sets.quadIneq`,
+  `intersect`) и шагами; автопроверка сверяет 30 задач каждого генератора.
 - Движок: `engine/expr.js` (формулы по-школьному), `sets.js` (ответы-множества,
   точные числа (p + q√d)/n, распознавание 2√2 / log₂3 / π по приближению — `recognize`,
   `snap`), `solve.js` (подсчёт решений, карта ответа, проверка ответа), `plot.js` (рисование).

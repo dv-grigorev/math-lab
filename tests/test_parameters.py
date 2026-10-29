@@ -54,7 +54,10 @@ def test_parameters_tabs(browser, base_url, tab):
     topics = page.locator("#topics .chip")
     for i in range(topics.count()):
         topics.nth(i).click()
-        page.locator(f'#tabs .chip[data-tab="{tab}"]').click()
+        tab_btn = page.locator(f'#tabs .chip[data-tab="{tab}"]')
+        if not tab_btn.is_visible():  # у подтемы нет памятки — вкладка скрыта
+            continue
+        tab_btn.click()
         if tab == "examples":
             for _ in range(10):
                 if page.locator("#next").is_disabled():
