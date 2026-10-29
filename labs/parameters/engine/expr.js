@@ -203,7 +203,32 @@ PL.expr = (function () {
     return n;
   }
   const isNum = (n, v) => n.t === "num" && !n.pi && (v === undefined || Math.abs(n.v - v) < 1e-12);
+  // Сумма → список слагаемых со знаком: a − (b + c) → [+a, −b, −c]
+  function terms(n, sign, out) {
+    if (n.t === "bin" && (n.op === "+" || n.op === "-")) {
+      terms(n.l, sign, out);
+      terms(n.r, n.op === "+" ? sign : -sign, out);
+    } else if (n.t === "neg") terms(n.a, -sign, out);
+    else out.push({ sign, n });
+    return out;
+  }
+  // Числовые слагаемые складываем в одно и ставим в конец
+  function foldSum(n) {
+    const ts = terms(n, 1, []);
+    const nums = ts.filter(t => isNum(t.n));
+    if (nums.length < 2) return n;
+    const c = nums.reduce((u, t) => u + t.sign * t.n.v, 0);
+    const rest = ts.filter(t => !isNum(t.n));
+    if (Math.abs(c) > 1e-12 || !rest.length) rest.push({ sign: 1, n: { t: "num", v: c } });
+    let out = rest[0].sign > 0 ? rest[0].n : { t: "neg", a: rest[0].n };
+    for (const t of rest.slice(1)) out = { t: "bin", op: t.sign > 0 ? "+" : "-", l: out, r: t.n };
+    return out;
+  }
   function simplify(n) {
+    const r = simplify0(n);
+    return r.t === "bin" && (r.op === "+" || r.op === "-") ? simplify0(foldSum(r)) : r;
+  }
+  function simplify0(n) {
     if (n.t === "neg") {
       const a = simplify(n.a);
       if (isNum(a)) return { t: "num", v: -a.v };
@@ -289,6 +314,9 @@ PL.expr = (function () {
         if (n.op === "+") {
           if (n.r.t === "neg") return L + " " + MINUS + " " + side(n.r.a, 1.5);
           if (n.r.t === "num" && n.r.v < 0) return L + " " + MINUS + " " + fmtNum(-n.r.v);
+          // x + (−2√2) → x − 2√2;  x + (−4 − 16√2) → x − 4 − 16√2
+          const pos = dropLeadingMinus(n.r);
+          if (pos) return L + " " + MINUS + " " + (n.r.t === "bin" && (n.r.op === "+" || n.r.op === "-") ? html(pos) : side(pos, 1.5));
           return L + " + " + R;
         }
         if (n.op === "-") return L + " " + MINUS + " " + side(n.r, 1.5);
@@ -306,13 +334,46 @@ PL.expr = (function () {
       }
     }
   }
+  // Если выражение начинается с минуса (−2√2, −284/9, −4 − 16√2) — то же без этого минуса, иначе null
+  function dropLeadingMinus(n) {
+    if (n.t === "neg") return n.a;
+    if (n.t === "num" && n.v < 0) return { t: "num", v: -n.v };
+    if (n.t === "bin" && n.op !== "^") {
+      const l = dropLeadingMinus(n.l);
+      if (!l) return null;
+      // в сумме убираем минус только у первого слагаемого: «x + (−4 − 16√2)» печатается «x − 4 − 16√2»
+      return { ...n, l };
+    }
+    return null;
+  }
   function side(n, need) { const s = html(n); return prec(n) < need ? wrap(s) : s; }
 
   // Формула с подставленным a: «y = 0,5x + 2»
   // exact — точная запись a («2√2», «log2(3)»): подставляем её, а не десятичную дробь
   function htmlWith(ast, aValue, exact) {
-    if (exact) { try { return html(simplify(subst(ast, "a", parse(exact)))); } catch (e) { /* ниже — числом */ } }
+    // считаем числами, а потом каждое число пишем точно: 4 − 8·4/9 → 4/9, 4 − 8·2√2 → 4 − 16√2
+    // если какое-то число точно записать не вышло (например, log₂3 − 2) — подставляем запись a как есть
+    if (exact) {
+      try { return html(exactNums(simplify(subst(ast, "a", value(exact))))); } catch (e) { /* ниже */ }
+      try { return html(simplify(subst(ast, "a", parse(exact)))); } catch (e) { /* ниже — числом */ }
+    }
     return html(aValue === undefined ? ast : simplify(subst(ast, "a", aValue)));
+  }
+
+  function exactNums(n) {
+    if (n.t === "num" && !n.pi && PL.sets) {
+      const r = PL.sets.recognize(n.v);
+      if (!r && !Number.isInteger(+n.v.toFixed(9))) throw new Error("не узнали число");
+      if (r && !/^-?\d+$/.test(r)) {
+        return parse(r); // «-2√2» разберётся как минус перед 2√2
+      }
+      return n;
+    }
+    // «… − 18,63» → «… + (4 − 16√2)», а не «… − (−4 + 16√2)»
+    if (n.t === "bin" && n.op === "-" && n.r.t === "num" && !n.r.pi) return exactNums({ ...n, op: "+", r: { t: "num", v: -n.r.v } });
+    if (n.t === "bin") return { ...n, l: exactNums(n.l), r: exactNums(n.r) };
+    if (n.t === "neg" || n.t === "fn") return { ...n, a: exactNums(n.a) };
+    return n;
   }
 
   // Текст с формулами в $…$ → HTML. Внутри $…$ можно «=», «<», «;», «,».

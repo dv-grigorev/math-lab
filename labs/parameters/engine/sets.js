@@ -57,10 +57,10 @@ PL.sets = (function () {
     for (let n = 1; n <= 12; n++) {
       for (const d of SQUAREFREE) {
         const qs = d === 1 ? [0] : [];
-        if (d > 1) for (let q = 1; q <= 12; q++) qs.push(q, -q);
+        if (d > 1) for (let q = 1; q <= 30; q++) qs.push(q, -q);
         for (const q of qs) {
           const p = Math.round(v * n - q * Math.sqrt(d));
-          if (Math.abs(p) > 200 || Math.abs(v * n - p - q * Math.sqrt(d)) > 1e-7 * n) continue;
+          if (Math.abs(p) > (q ? 200 : 5000) || Math.abs(v * n - p - q * Math.sqrt(d)) > 1e-7 * n) continue;
           const sd = surd(p, q, d, n);
           take(sd.n + Math.abs(sd.q) + (sd.q ? sd.d / 4 : 0) + Math.abs(sd.p) / 8, surdStr(sd));
         }

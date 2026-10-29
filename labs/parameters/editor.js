@@ -267,7 +267,8 @@
     const R = stage.s.range;
     const approx = V.approx(ct, R);
     const approxTxt = approx.length
-      ? approx.map(I => `(${I.loInf ? "…" : "≈ " + E.fmtNum(I.lo)}; ${I.hiInf ? "…" : "≈ " + E.fmtNum(I.hi)})`).join(" ∪ ")
+      ? approx.map(I => I.hi - I.lo < 1e-6 ? `{≈ ${E.fmtNum(I.lo)}}`
+          : `(${I.loInf ? "…" : "≈ " + E.fmtNum(I.lo)}; ${I.hiInf ? "…" : "≈ " + E.fmtNum(I.hi)})`).join(" ∪ ")
       : "таких значений нет";
     const hint = `<p>По графику, приближённо, для a от ${E.fmtNum(R[0])} до ${E.fmtNum(R[1])}: ${approxTxt}
       («…» — промежуток идёт до края диапазона). Отдельные значения (касания) так не видны — их проверяем по концам вашего ответа.</p>`;

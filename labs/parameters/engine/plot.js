@@ -218,6 +218,10 @@ PL.plot = (function () {
         el("text", { x: sx(t), y: Y + 32, "text-anchor": "middle", "font-size": 13, fill: C("--muted") }, svg).textContent = fmtNum(t);
       }
       el("text", { x: W - 4, y: Y + 4, "text-anchor": "end", "font-size": 14, "font-style": "italic", fill: C("--muted") }, svg).textContent = "a";
+      // текущее a (рисуем до подписей, чтобы он их не закрывал)
+      if (a !== null && a >= A0 && a <= A1) {
+        el("path", { d: `M${sx(a)} ${Y - 9} l-7 -10 h14 z`, fill: C("--ink") }, svg);
+      }
       if (data) {
         // Подписи: сначала отдельные точки (касания), потом границы промежутков; налезающие пропускаем.
         // два ряда подписей: если в нижнем ряду тесно — поднимаем выше
@@ -239,10 +243,6 @@ PL.plot = (function () {
           el("line", { x1: sx(b), y1: Y - 8, x2: sx(b), y2: Y + 8, stroke: C("--ink"), "stroke-width": 2 }, svg);
           if (free(sx(b))) text(sx(b), PL.sets.label(b), C("--ink"));
         }
-      }
-      // текущее a
-      if (a !== null && a >= A0 && a <= A1) {
-        el("path", { d: `M${sx(a)} ${Y - 9} l-7 -10 h14 z`, fill: C("--ink") }, svg);
       }
       rows.forEach((r, i) => drawSet(r, 106 + i * 30, sx, A0, A1));
     }

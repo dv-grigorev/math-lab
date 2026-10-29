@@ -385,7 +385,9 @@ PL.solve = (function () {
   // Число решений точно в заданных значениях a (концы ответа). Элемент: число или {v, s} — значение и запись.
   function specialAt(ct, list, [a0, a1]) {
     const where = ct.asks.length === 1 ? ct.asks[0].where : null;
+    const seen = [];
     return list.map(x => (typeof x === "number" ? { v: x } : x)).filter(x => x.v > a0 && x.v < a1)
+      .filter(x => !seen.some(v => Math.abs(v - x.v) < 1e-9) && seen.push(x.v)) // у точки {0} оба конца — 0
       .map(x => ({ p: x.v, label: x.s, n: countWhere(solutions(ct, x.v), where, x.v) }));
   }
   function mergeSpecial(found, given) {
