@@ -66,3 +66,38 @@ def test_parameters_tabs(browser, base_url, tab):
             assert page.locator(".verdict-box").count() == 1
     page.close()
     assert not errors, "\n".join(errors)
+
+
+def test_editor_roundtrip(browser, base_url):
+    """Конструктор: задача в плоскости (x; a) проверяется, скачанный teacher.js читается обратно."""
+    page = browser.new_page(accept_downloads=True)
+    errors = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.on("dialog", lambda d: d.accept())  # «в банке есть задача без ответа — всё равно скачать?»
+    page.goto(f"{base_url}/labs/parameters/editor.html", wait_until="networkidle")
+    page.locator("#new").click()
+    page.locator("#f-text").fill("При каких $a$ уравнение $|x^2 - 4| = a$ имеет ровно четыре корня?")
+    page.locator("#f-system").fill("")
+    page.locator('input[name=plane][value="xa"]').check()
+    page.locator("#f-p1").fill("a = |x^2 - 4|")
+    page.locator("#f-ask").fill("=4")
+    page.locator("#f-a0").fill("-2")
+    page.locator("#f-a1").fill("8")
+    page.locator("#f-answer").fill("(0; 5)")
+    page.locator(".check-box.bad").wait_for(timeout=20000)   # неверный ответ пойман
+    page.locator("#f-answer").fill("(0; 4)")
+    page.locator(".check-box.ok").wait_for(timeout=20000)
+    with page.expect_download() as dl:
+        page.locator("#download").click()
+    text = open(dl.value.path(), encoding="utf-8").read()
+    page.close()
+    assert not errors, "\n".join(errors)
+
+    check = browser.new_page()
+    check.set_content("<p>")
+    check.add_script_tag(content="window.PL = { bank: [] };")
+    check.add_script_tag(content=text)
+    bank = check.evaluate("PL.bank")
+    check.close()
+    task = bank[-1]
+    assert task["plane"] == "xa" and task["answer"] == "(0; 4)" and task["eq"] == ["a = |x^2 - 4|"]

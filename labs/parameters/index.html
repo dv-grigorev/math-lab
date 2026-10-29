@@ -5,72 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Задачи с параметром — Математическая лаборатория</title>
 <link rel="stylesheet" href="../../shared/style.css">
-<style>
-  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .85em; line-height: 1.15; }
-  .frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 3px; }
-  .frac > span:last-child { padding: 0 3px; }
-  .sqrt { white-space: nowrap; }
-  .sqrt > span { border-top: 1.5px solid currentColor; padding: 0 2px; }
-  .f { font-family: "Cambria Math", "STIX Two Math", "Times New Roman", serif; font-size: 1.08em; white-space: nowrap; }
-  .f sup { font-size: .7em; }
-  svg text { font-family: var(--font); }
-
-  .pl { max-width: 1200px; margin: 0 auto; padding: 12px 16px 40px; display: grid; gap: 16px; }
-  .pl-nav { display: grid; gap: 10px; }
-  .pl-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
-  @media (max-width: 860px) { .pl-main { grid-template-columns: minmax(0, 1fr); } }
-  .pl-text { display: grid; gap: 14px; min-width: 0; }
-  .pl-text .card > *:last-child { margin-bottom: 0; }
-  .pl-text p, .pl-text li { line-height: 1.6; }
-  .pl-text ul, .pl-text ol { padding-left: 22px; }
-  .pl-stage { position: sticky; top: 8px; display: grid; gap: 10px; min-width: 0; }
-  .pl-stage .plot { max-height: calc(100vh - 360px); min-height: 240px; }
-  /* телефон: график сверху, под ним шаги и кнопки — не нужно листать туда-обратно */
-  @media (max-width: 860px) {
-    .pl-stage { order: -1; }
-    .pl[data-tab="practice"] .pl-stage { order: 0; }
-    .pl-stage .a-row { grid-template-columns: minmax(0, 1fr); }
-    .pl-stage .plot { max-height: 46vh; min-height: 0; }
-  }
-  @media (max-width: 860px) { .pl-stage { position: static; } }
-  .tabs .chip { font-weight: 600; }
-
-  .memo-sec.active { border-color: var(--accent); }
-  .memo-sec h3, .ex h3 { margin: 0 0 8px; font-size: 18px; }
-  .scene-btn { margin-top: 4px; }
-
-  .system { display: inline-flex; align-items: stretch; gap: 6px; margin: 6px 0; font-size: 1.1em; max-width: 100%; overflow-x: auto; }
-  .system .brace { font-size: 2.6em; line-height: .9; font-weight: 200; }
-  .system .rows { display: grid; gap: 4px; align-content: center; }
-
-  .steps { display: grid; gap: 8px; margin: 10px 0; padding: 0; list-style: none; }
-  .steps li { border-left: 3px solid var(--line); padding: 4px 0 4px 12px; color: var(--muted); }
-  .steps li.cur { border-color: var(--accent); color: var(--ink); }
-  .steps li.cur::marker { color: var(--accent); }
-
-  .eqs { display: flex; flex-wrap: wrap; gap: 4px 16px; justify-content: center; font-size: 17px; }
-  .eqs .p0 { color: var(--accent); } .eqs .p1 { color: var(--warm); }
-  .eqs > span::before { content: "● "; font-size: 12px; vertical-align: middle; }
-  .count { text-align: center; font-size: 15px; color: var(--muted); min-height: 1.5em; }
-  .count b { color: var(--ink); }
-  .a-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; }
-  .map { width: 100%; height: auto; display: block; touch-action: none; cursor: pointer; }
-  .map-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); justify-content: center; }
-  .map-legend i { display: inline-block; width: 14px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
-  .hidden-stage { text-align: center; color: var(--muted); padding: 40px 16px; }
-
-  .answer-box { display: grid; gap: 8px; }
-  .answer-box input { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); font-size: 18px; }
-  .kbd { display: flex; flex-wrap: wrap; gap: 6px; }
-  .kbd button { min-width: 40px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 16px; }
-  .preview { font-size: 15px; color: var(--muted); min-height: 1.5em; }
-  .preview.err { color: #d4483b; }
-  .verdict-box { border-radius: 10px; padding: 10px 12px; font-weight: 600; }
-  .verdict-box.ok { background: color-mix(in srgb, var(--good) 15%, transparent); color: var(--good); }
-  .verdict-box.bad { background: color-mix(in srgb, #e5484d 14%, transparent); color: #d4483b; }
-  .verdict-box .right { display: block; font-weight: 400; color: var(--ink); margin-top: 4px; }
-  .src-note { font-size: 13px; color: var(--muted); }
-</style>
+<link rel="stylesheet" href="param.css">
 </head>
 <body>
 <header class="lab-header">
@@ -113,6 +48,7 @@
       </div>
     </section>
   </div>
+  <p class="src-note">Учителю: <a href="editor.html">конструктор задач</a> — добавить свои задачи в банк.</p>
 </main>
 
 <script src="../../shared/ui.js"></script>
@@ -120,6 +56,7 @@
 <script src="engine/sets.js"></script>
 <script src="engine/solve.js"></script>
 <script src="engine/plot.js"></script>
+<script src="engine/stage.js"></script>
 <script src="topics/circle-line.js"></script>
 <script src="bank/teacher.js"></script>
 <script src="app.js"></script>

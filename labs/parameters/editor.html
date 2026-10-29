@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Конструктор задач — Задачи с параметром</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<link rel="stylesheet" href="param.css">
+<style>
+  .ed-form { display: grid; gap: 12px; }
+  .ed-form label.fld { display: grid; gap: 4px; font-size: 14px; font-weight: 600; }
+  .ed-form .hint { font-weight: 400; font-size: 13px; color: var(--muted); }
+  .ed-form input[type=text], .ed-form input[type=number], .ed-form textarea, .ed-form select {
+    width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel);
+    font: inherit; font-weight: 400;
+  }
+  .ed-form textarea { resize: vertical; min-height: 44px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
+  .ed-form textarea.prose { font-family: inherit; font-size: 15px; }
+  .ed-form .err-msg { color: #d4483b; font-size: 13px; font-weight: 400; min-height: 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .four { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .radio-row { display: flex; gap: 14px; flex-wrap: wrap; font-weight: 400; }
+  .radio-row label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  .mini-chips { display: flex; gap: 4px; flex-wrap: wrap; }
+  .mini-chips button { font-size: 13px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); background: transparent; cursor: pointer; }
+
+  .tasklist { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0 0 10px; padding: 0; list-style: none; max-height: 260px; overflow-y: auto; }
+  .tasklist li { display: flex; gap: 8px; align-items: center; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; cursor: pointer; font-size: 14px; }
+  .tasklist li.cur { border-color: var(--accent); background: var(--accent-soft); }
+  .tasklist .tid { font-weight: 700; white-space: nowrap; }
+  .tasklist .ttxt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .tasklist .st { font-size: 13px; }
+  .banner { border-radius: 10px; padding: 8px 12px; background: var(--accent-soft); font-size: 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+  .step-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px auto; gap: 6px; align-items: start; border-left: 3px solid var(--line); padding-left: 8px; }
+  .step-row .opts { display: grid; gap: 4px; font-size: 13px; font-weight: 400; }
+  .step-row .opts label { display: flex; gap: 4px; align-items: center; }
+
+  .check-box { border-radius: 10px; padding: 10px 12px; font-size: 15px; }
+  .check-box.ok { background: color-mix(in srgb, var(--good) 15%, transparent); }
+  .check-box.ok b { color: var(--good); }
+  .check-box.bad { background: color-mix(in srgb, #e5484d 14%, transparent); }
+  .check-box.bad b { color: #d4483b; }
+  .check-box.wait { background: var(--accent-soft); }
+  .check-box p { margin: 6px 0 0; font-size: 14px; }
+  .howto ol { padding-left: 20px; margin: 6px 0; }
+  .howto li { margin-bottom: 4px; }
+  .howto code { background: var(--bg); padding: 1px 5px; border-radius: 4px; }
+  @media (max-width: 860px) { .pl-stage { order: 0; } }
+</style>
+</head>
+<body>
+<header class="lab-header">
+  <a class="back" href="index.html">← К тренажёру</a>
+  <h1>Конструктор задач</h1>
+  <p>Для учителя: составьте задачу, проверьте ответ на графике и сохраните в банк.</p>
+</header>
+
+<main class="pl">
+  <div id="banner"></div>
+  <div class="pl-main">
+    <section class="pl-text">
+      <div class="card">
+        <h2>Задачи банка</h2>
+        <ul class="tasklist" id="list"></ul>
+        <div class="btn-row">
+          <button class="btn primary" id="new">+ Новая задача</button>
+          <button class="btn" id="dup">Копия текущей</button>
+          <button class="btn" id="del">Удалить текущую</button>
+        </div>
+      </div>
+
+      <div class="card ed-form" id="form">
+        <h2>Задача</h2>
+        <div class="two">
+          <label class="fld">Подтема <select id="f-topic"></select></label>
+          <label class="fld">Номер <input type="text" id="f-id"></label>
+        </div>
+        <label class="fld">Условие
+          <textarea id="f-text" class="prose" rows="3"></textarea>
+          <span class="hint">Формулы — внутри $…$: $sqrt(4 - x^2) = x + a$, $|x - 2|$, $x^2 + y^2 = 4$.</span>
+        </label>
+        <label class="fld">Система для показа <span class="hint">необязательно; по одному уравнению в строке — покажется со скобкой</span>
+          <textarea id="f-system" rows="2"></textarea>
+        </label>
+
+        <div class="fld" style="font-weight:600;font-size:14px">Как решаем графически
+          <div class="radio-row">
+            <label><input type="radio" name="plane" value="xy" checked> в плоскости (x; y)</label>
+            <label><input type="radio" name="plane" value="xa"> в плоскости (x; a)</label>
+          </div>
+        </div>
+        <label class="fld"><span id="lbl-p1">Неподвижная часть (синяя)</span>
+          <textarea id="f-p1" rows="2"></textarea>
+          <span class="hint" id="hint-p1">По одной линии в строке: <code>x^2 + y^2 = 4</code>, <code>y = sqrt(4 - x^2)</code>,
+            <code>y = 2 - |x| при |x| &lt;= 2</code>. Несколько строк — объединение линий.</span>
+        </label>
+        <label class="fld" id="wrap-p2"><span>Подвижная часть (оранжевая)</span>
+          <textarea id="f-p2" rows="2"></textarea>
+          <span class="hint">Обычно зависит от a: <code>y = x + a</code>, <code>y = a(x + 3)</code>, <code>x^2 + y^2 = a</code>.</span>
+        </label>
+
+        <label class="fld">Сколько решений нужно
+          <input type="text" id="f-ask">
+          <span class="mini-chips" id="ask-chips"></span>
+          <span class="hint">Можно с условием на x: <code>=2 при x &gt; 1</code>. Несколько условий — через «;».</span>
+        </label>
+        <label class="fld">Ответ
+          <input type="text" id="f-answer" placeholder="(-2√2; 2√2) ∪ {3}">
+          <span class="kbd" id="kbd"></span>
+          <span class="preview" id="ans-preview"></span>
+        </label>
+        <div class="fld" style="font-weight:600;font-size:14px">Диапазон ползунка a и окно графика
+          <div class="four">
+            <input type="number" id="f-a0" step="any" title="a от" placeholder="a от">
+            <input type="number" id="f-a1" step="any" title="a до" placeholder="a до">
+            <span></span><span></span>
+            <input type="number" id="f-x0" step="any" title="x от" placeholder="x от">
+            <input type="number" id="f-x1" step="any" title="x до" placeholder="x до">
+            <input type="number" id="f-y0" step="any" title="y от" placeholder="y от">
+            <input type="number" id="f-y1" step="any" title="y до" placeholder="y до">
+          </div>
+          <span class="hint">Окно можно не заполнять: по умолчанию от −6 до 6.</span>
+        </div>
+
+        <div class="fld" style="font-weight:600;font-size:14px">Решение по шагам
+          <span class="hint">Текст шага и значение a, которое покажет график. Нажмите на шаг справа в превью — увидите его.</span>
+          <div id="steps" style="display:grid;gap:8px"></div>
+          <div class="btn-row"><button class="btn" id="add-step">+ Шаг</button></div>
+        </div>
+      </div>
+
+      <div class="card howto">
+        <h2>Как сохранить в банк</h2>
+        <ol>
+          <li>Нажмите <b>«Скачать teacher.js»</b> — в файле все задачи из списка выше.</li>
+          <li>На GitHub откройте репозиторий <code>math-lab</code>, переключитесь на ветку <b>dev</b>, папка
+            <code>labs/parameters/bank</code> → <b>Add file → Upload files</b>, перетащите скачанный файл, <b>Commit changes</b>.</li>
+          <li>Автопроверка сама пересчитает все ответы. Если всё сходится — откройте pull request <code>dev → main</code>
+            и нажмите <b>Merge</b>: задачи появятся на сайте. Если нет — GitHub покажет, в какой задаче ошибка.</li>
+        </ol>
+        <p class="hint" style="margin:0">Или просто пришлите файл Claude — он добавит его сам.
+          Пока вы работаете, черновик хранится в этом браузере и не пропадёт при перезагрузке страницы.</p>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn primary" id="download">Скачать teacher.js</button>
+          <button class="btn" id="copy">Скопировать текущую задачу</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="pl-stage">
+      <div class="card">
+        <h2>Как увидит ученик</h2>
+        <div id="pv-text"></div>
+        <ol class="steps" id="pv-steps"></ol>
+      </div>
+      <div class="card" id="stageCard">
+        <div class="eqs" id="eqs"></div>
+        <svg class="plot" id="plot" role="img" aria-label="График"></svg>
+        <div class="count" id="count"></div>
+        <div class="a-row">
+          <div id="aSlider"></div>
+          <div class="btn-row">
+            <button class="btn" id="play">▶ Прокрутить</button>
+            <button class="btn" id="reset">Сбросить</button>
+          </div>
+        </div>
+        <svg class="map" id="map" role="img" aria-label="Карта ответа"></svg>
+        <div class="map-legend" id="legend"></div>
+      </div>
+      <div class="card">
+        <h2>Проверка ответа</h2>
+        <div id="check"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="../../shared/ui.js"></script>
+<script src="engine/expr.js"></script>
+<script src="engine/sets.js"></script>
+<script src="engine/solve.js"></script>
+<script src="engine/plot.js"></script>
+<script src="engine/stage.js"></script>
+<script src="topics/circle-line.js"></script>
+<script src="bank/teacher.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>

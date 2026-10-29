@@ -289,8 +289,8 @@ PL.solve = (function () {
       case "!=": return n !== k;
     }
   }
-  function holds(ct, p, N) {
-    const sol = solutions(ct, p, N);
+  function holds(ct, p, N, n2d) {
+    const sol = solutions(ct, p, N, n2d);
     return ct.asks.every(a => askHolds(a, countWhere(sol, a.where, p)));
   }
 
@@ -341,5 +341,30 @@ PL.solve = (function () {
     return bad.sort((u, w) => u.a - w.a);
   }
 
-  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, verify };
+  // ---------- Приближённый ответ (подсказка в конструкторе) ----------
+  // Промежутки a в диапазоне range, где условие выполняется; концы уточняются делением пополам.
+  // Отдельные точки (касания) сеткой не ловятся — их проверяет verify по концам ответа.
+  function approx(ct, range, opts = {}) {
+    const [a0, a1] = range, M = opts.samples || 300, N = opts.N || 6000, n2d = opts.n2d || 160;
+    const ok = (p) => holds(ct, p, N, n2d);
+    const xs = [], vs = [];
+    for (let i = 0; i <= M; i++) { const p = a0 + (a1 - a0) * i / M; xs.push(p); vs.push(ok(p)); }
+    const edge = (lo, hi, vlo) => {
+      for (let k = 0; k < 30; k++) { const m = (lo + hi) / 2; if (ok(m) === vlo) lo = m; else hi = m; }
+      return (lo + hi) / 2;
+    };
+    const out = [];
+    let start = vs[0] ? { v: a0, open: true } : null;
+    for (let i = 1; i <= M; i++) {
+      if (vs[i] !== vs[i - 1]) {
+        const e = edge(xs[i - 1], xs[i], vs[i - 1]);
+        if (vs[i]) start = { v: e };
+        else { out.push({ lo: start.v, hi: e, loInf: !!start.open }); start = null; }
+      }
+    }
+    if (start) out.push({ lo: start.v, hi: a1, loInf: !!start.open, hiInf: true });
+    return out;
+  }
+
+  return { compileTask, compileCurve, compileCond, solutions, countWhere, holds, map, verify, approx };
 })();
