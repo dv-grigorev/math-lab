@@ -13,7 +13,17 @@ PL.plot = (function () {
     if (parent) parent.appendChild(e);
     return e;
   }
-  function niceStep(span) { return span <= 14 ? 1 : span <= 30 ? 2 : span <= 70 ? 5 : 10; }
+  // Шаг сетки: 1, 2, 5 × 10^k — чтобы линий было около дюжины при любом масштабе
+  function niceStep(span) {
+    const raw = span / 12, k = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / k;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * k;
+  }
+  // Кратные шага в отрезке [lo; hi] без накопления ошибки
+  function ticks(lo, hi, step) {
+    const out = [];
+    for (let i = Math.ceil(lo / step - 1e-9); i * step <= hi + 1e-9; i++) out.push(+(i * step).toPrecision(12));
+    return out;
+  }
 
   // ---------- Сцена ----------
   // view: {x: [x0, x1], y: [y0, y1]}; extras: [{type: "point"|"segment"|"curve", ...}]
@@ -33,21 +43,23 @@ PL.plot = (function () {
       el("rect", { x: PAD, y: PAD, width: W - 2 * PAD, height: H - 2 * PAD }, el("clipPath", { id: clipId }, defs));
 
       // сетка и оси
-      const step = niceStep(X1 - X0);
+      const step = niceStep(Math.max(X1 - X0, Y1 - Y0));
       const g = el("g", {}, svg);
-      for (let x = Math.ceil(X0); x <= X1; x++) el("line", { x1: sx(x), y1: sy(Y0), x2: sx(x), y2: sy(Y1), stroke: C("--grid") }, g);
-      for (let y = Math.ceil(Y0); y <= Y1; y++) el("line", { x1: sx(X0), y1: sy(y), x2: sx(X1), y2: sy(y), stroke: C("--grid") }, g);
+      for (const x of ticks(X0, X1, step)) el("line", { x1: sx(x), y1: sy(Y0), x2: sx(x), y2: sy(Y1), stroke: C("--grid") }, g);
+      for (const y of ticks(Y0, Y1, step)) el("line", { x1: sx(X0), y1: sy(y), x2: sx(X1), y2: sy(y), stroke: C("--grid") }, g);
       const ax = { stroke: C("--axis"), "stroke-width": 1.5 };
       if (Y0 < 0 && Y1 > 0) el("line", { x1: sx(X0), y1: sy(0), x2: sx(X1), y2: sy(0), ...ax }, svg);
       if (X0 < 0 && X1 > 0) el("line", { x1: sx(0), y1: sy(Y0), x2: sx(0), y2: sy(Y1), ...ax }, svg);
-      const lab = { "font-size": 14, fill: C("--muted") };
-      const y0 = Math.min(Math.max(0, Y0), Y1), x0 = Math.min(Math.max(0, X0), X1);
-      for (let x = Math.ceil(X0 / step) * step; x < X1; x += step) {
-        if (x === 0 || x === X0) continue;
+      const lab = { "font-size": 14, fill: C("--muted"), stroke: C("--panel"), "stroke-width": 3, "paint-order": "stroke" };
+      // подписи — на оси, а если ось за краем — у края окна
+      const y0 = Math.min(Math.max(0, Y0 + 1.2 / k * 14), Y1), x0 = Math.min(Math.max(0, X0 + 36 / k), X1);
+      const lstep = (X1 - X0) / step > 14 ? 2 * step : step;
+      for (const x of ticks(X0, X1, lstep)) {
+        if (Math.abs(x) < 1e-12 || x <= X0 || x >= X1) continue;
         el("text", { x: sx(x), y: sy(y0) + 16, "text-anchor": "middle", ...lab }, svg).textContent = fmtNum(x);
       }
-      for (let y = Math.ceil(Y0 / step) * step; y < Y1; y += step) {
-        if (y === 0 || y === Y0) continue;
+      for (const y of ticks(Y0, Y1, lstep)) {
+        if (Math.abs(y) < 1e-12 || y <= Y0 || y >= Y1) continue;
         el("text", { x: sx(x0) - 6, y: sy(y) + 5, "text-anchor": "end", ...lab }, svg).textContent = fmtNum(y);
       }
       el("text", { x: sx(X1) - 4, y: sy(y0) - 8, "text-anchor": "end", "font-style": "italic", ...lab }, svg).textContent = "x";
@@ -148,7 +160,7 @@ PL.plot = (function () {
       return d;
     }
     // неявная кривая: марширующие квадраты
-    const n = 220, dx = (X1 - X0) / n, dy = (Y1 - Y0) / n;
+    const n = 260, dx = (X1 - X0) / n, dy = (Y1 - Y0) / n;
     const f = (x, y) => (cv.dom && !cv.dom(x, y, a) ? NaN : cv.F(x, y, a));
     let d = "";
     const row = [], next = [];
@@ -186,12 +198,12 @@ PL.plot = (function () {
     const W = 600, PAD = 22;
     function render(range, data, a, rows = [], diff = null) {
       const [A0, A1] = range;
-      const H = 74 + rows.length * 30;
+      const H = 86 + rows.length * 30;
       const sx = (t) => PAD + (t - A0) / (A1 - A0) * (W - 2 * PAD);
       st = { sx, A0, A1 };
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.innerHTML = "";
-      const Y = 34;
+      const Y = 46;
       if (diff) for (const [u, w] of diff) {
         const x1 = sx(Math.max(u, A0)), x2 = sx(Math.min(w, A1));
         el("rect", { x: Math.min(x1, x2) - 3, y: 8, width: Math.max(6, Math.abs(x2 - x1) + 6), height: H - 12, rx: 4, fill: "#e5484d", opacity: 0.18 }, svg);
@@ -201,29 +213,38 @@ PL.plot = (function () {
       }
       el("line", { x1: PAD, y1: Y + 14, x2: W - PAD, y2: Y + 14, stroke: C("--axis"), "stroke-width": 1.5 }, svg);
       const step = niceStep(A1 - A0);
-      for (let t = Math.ceil(A0 / step) * step; t <= A1 + 1e-9; t += step) {
+      for (const t of ticks(A0, A1, step)) {
         el("line", { x1: sx(t), y1: Y + 10, x2: sx(t), y2: Y + 18, stroke: C("--axis") }, svg);
         el("text", { x: sx(t), y: Y + 32, "text-anchor": "middle", "font-size": 13, fill: C("--muted") }, svg).textContent = fmtNum(t);
       }
       el("text", { x: W - 4, y: Y + 4, "text-anchor": "end", "font-size": 14, "font-style": "italic", fill: C("--muted") }, svg).textContent = "a";
       if (data) {
-        let lastX = -1e9;
+        // Подписи: сначала отдельные точки (касания), потом границы промежутков; налезающие пропускаем.
+        // два ряда подписей: если в нижнем ряду тесно — поднимаем выше
+        const taken = [[], []];
+        const free = (x) => taken.some(row => row.every(t => Math.abs(t - x) > 46));
+        const text = (x, txt, color) => {
+          const r = taken[0].every(t => Math.abs(t - x) > 46) ? 0 : 1;
+          el("text", { x, y: Y - 13 - 14 * r, "text-anchor": "middle", "font-size": 12, "font-weight": 700, fill: color,
+            stroke: C("--panel"), "stroke-width": 3, "paint-order": "stroke" }, svg).textContent = txt;
+          taken[r].push(x);
+        };
         for (const s of data.special) {
           el("circle", { cx: sx(s.p), cy: Y, r: 7, fill: countColor(s.n), stroke: C("--ink"), "stroke-width": 2 }, svg);
-          // подпись значения, если не налезает на соседнюю
-          if (sx(s.p) - lastX > 46) {
-            const txt = s.label ? s.label.replace(/-/g, "−") : fmtNum(s.p);
-            el("text", { x: sx(s.p), y: Y - 13, "text-anchor": "middle", "font-size": 12, "font-weight": 700, fill: countColor(s.n),
-              stroke: C("--panel"), "stroke-width": 3, "paint-order": "stroke" }, svg).textContent = txt;
-            lastX = sx(s.p);
-          }
+          if (free(sx(s.p))) text(sx(s.p), PL.sets.label(s.p, s.label), countColor(s.n));
+        }
+        for (let i = 0; i < data.segs.length - 1; i++) {
+          const b = data.segs[i].hi;
+          if (data.special.some(s => Math.abs(s.p - b) < 1e-6)) continue;
+          el("line", { x1: sx(b), y1: Y - 8, x2: sx(b), y2: Y + 8, stroke: C("--ink"), "stroke-width": 2 }, svg);
+          if (free(sx(b))) text(sx(b), PL.sets.label(b), C("--ink"));
         }
       }
       // текущее a
       if (a !== null && a >= A0 && a <= A1) {
         el("path", { d: `M${sx(a)} ${Y - 9} l-7 -10 h14 z`, fill: C("--ink") }, svg);
       }
-      rows.forEach((r, i) => drawSet(r, 94 + i * 30, sx, A0, A1));
+      rows.forEach((r, i) => drawSet(r, 106 + i * 30, sx, A0, A1));
     }
     function drawSet(r, y, sx, A0, A1) {
       const color = C(r.color);

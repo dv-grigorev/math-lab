@@ -46,6 +46,35 @@ PL.sets = (function () {
     return r.sort((u, w) => u.v - w.v);
   }
 
+  // Узнать точное число по приближённому: 2.8284271 → «2√2», 0.8944272 → «2√5/5», 1.3333 → «4/3».
+  // Ищем (p + q√d)/n с небольшими n, q, d; не нашли — null.
+  const SQUAREFREE = [1, 2, 3, 5, 6, 7, 10, 11, 13, 14, 15, 17, 19, 21, 22, 23, 26, 29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 46, 47];
+  function recognize(v) {
+    if (!Number.isFinite(v)) return null;
+    let best = null;
+    for (let n = 1; n <= 12; n++) {
+      for (const d of SQUAREFREE) {
+        const qs = d === 1 ? [0] : [];
+        if (d > 1) for (let q = 1; q <= 12; q++) qs.push(q, -q);
+        for (const q of qs) {
+          const p = Math.round(v * n - q * Math.sqrt(d));
+          if (Math.abs(p) > 200 || Math.abs(v * n - p - q * Math.sqrt(d)) > 1e-7 * n) continue;
+          const sd = surd(p, q, d, n);
+          const score = sd.n + Math.abs(sd.q) + (sd.q ? sd.d / 4 : 0) + Math.abs(sd.p) / 8;
+          if (!best || score < best.score) best = { score, sd };
+        }
+      }
+      if (best && best.score <= n) break;
+    }
+    return best ? surdStr(best.sd) : null;
+  }
+  // Подпись числа: точная запись, если узнали, иначе «≈ 2,83». Минус — «−».
+  function label(v, given) {
+    // запись из ответа берём, если она «школьная» (без sqrt и т. п.)
+    const s = (given && !/[a-z]/i.test(given) ? given : null) || recognize(v);
+    return s ? s.replace(/-/g, "−") : "≈ " + PL.expr.fmtNum(v);
+  }
+
   // ---------- Конструкторы множеств ----------
   const INF = { v: Infinity, s: "+∞" }, NINF = { v: -Infinity, s: "-∞" };
   function iv(lo, hi, loC, hiC) {
@@ -211,6 +240,6 @@ PL.sets = (function () {
     });
   }
 
-  return { surd, surdStr, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
+  return { surd, surdStr, recognize, label, quadRoots, quadIneq, iv, point, all, num, INF, NINF, fromBoundaries,
     contains, normalize, union, intersect, minus, equal, parse, tryParse, format, formatHTML, boundaries, EPS };
 })();

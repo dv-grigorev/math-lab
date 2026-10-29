@@ -63,3 +63,11 @@ svg text { font-family: var(--font); }
 .verdict-box.bad { background: color-mix(in srgb, #e5484d 14%, transparent); color: #d4483b; }
 .verdict-box .right { display: block; font-weight: 400; color: var(--ink); margin-top: 4px; }
 .src-note { font-size: 13px; color: var(--muted); }
+
+/* приближение графика */
+.zoom-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin: 6px 0 2px; }
+.zoom-row .btn { padding: 4px 10px; font-size: 15px; }
+.zoom-hint { font-size: 12px; color: var(--muted); margin-right: auto; }
+@media (max-width: 860px) { .zoom-hint { display: none; } }
+.plot { cursor: grab; }
+.plot:active { cursor: grabbing; }
