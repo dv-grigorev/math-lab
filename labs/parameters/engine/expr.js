@@ -377,7 +377,9 @@ PL.expr = (function () {
   }
 
   // Система уравнений: фигурная скобка растягивается на всю высоту строк (дроби, корни)
-  const BRACE = `<svg class="brace" viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true">
+  // размеры — прямо в теге: скобка видна, даже если браузер взял из кэша старый файл стилей
+  const BRACE = `<svg class="brace" viewBox="0 0 12 100" preserveAspectRatio="none" aria-hidden="true"
+    style="width: 12px; flex: none; align-self: stretch; min-height: 2.6em; font-size: 1em; line-height: normal">
     <path d="M11 1 C6 1 6 3 6 9 L6 41 C6 47 4 49.5 1 50 C4 50.5 6 53 6 59 L6 91 C6 97 6 99 11 99"
       fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
   function systemHTML(rows) {

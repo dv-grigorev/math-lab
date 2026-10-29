@@ -35,6 +35,12 @@ jobs:
           mkdir _site
           cp -r index.html catalog.js shared labs _site/
           find _site -name '*.md' -delete
+          # Сброс кэша: к своим .js и .css добавляем версию (номер коммита),
+          # чтобы после обновления браузер ученика не смешал старые и новые файлы.
+          v="${GITHUB_SHA::8}"
+          find _site -name '*.html' -exec sed -i -E \
+            -e "s#(src=\"[^\":]+\.js)\"#\1?v=$v\"#g" \
+            -e "s#(href=\"[^\":]+\.css)\"#\1?v=$v\"#g" {} +
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4
         with:
