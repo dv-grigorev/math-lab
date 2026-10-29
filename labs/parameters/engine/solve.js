@@ -70,7 +70,8 @@ PL.solve = (function () {
     const asks = (Array.isArray(task.ask) ? task.ask : [task.ask || ">=1"]).map(a => compileAsk(a, plane));
     return {
       task, plane, parts, asks,
-      box: task.box || 30,
+      box: task.box || 30,        // квадрат поиска для двух неявных кривых
+      box1D: task.box || 1e4,     // если одна кривая явная — ищем намного дальше
       // aRange — диапазон, заданный вручную (иначе подбирается сам, см. fitRange);
       // search — где ищем особые значения a
       aRange: task.aRange ? [...task.aRange] : null,
@@ -88,12 +89,16 @@ PL.solve = (function () {
   }
 
   // ---------- Корни функции одной переменной ----------
+  // Точки сетки: t = sinh(u), u — равномерно. Около нуля шаг ~0,001, к краям растёт,
+  // так что ищем решения хоть до |t| = 10 000 и не теряем далёкие точки пересечения.
   function roots1D(h, valid, t0, t1, N) {
-    const dt = (t1 - t0) / N;
-    const ts = [], hs = [];
-    let prevOk = null;
+    const u0 = Math.asinh(t0), du = (Math.asinh(t1) - u0) / N;
+    const ts = [], hs = [], edge = []; // edge[i] — точка у выколотой границы: сама корнем не бывает
+    let prevOk = null, tPrev = t0;
+    const push = (t, v, e = false) => { ts.push(t); hs.push(v); edge.push(e); };
     for (let i = 0; i <= N; i++) {
-      const t = t0 + i * dt;
+      const t = Math.sinh(u0 + i * du), dt = t - tPrev;
+      tPrev = t;
       let v = h(t);
       const ok = Number.isFinite(v) && valid(t);
       if (prevOk !== null && ok !== prevOk) {
@@ -104,15 +109,23 @@ PL.solve = (function () {
           const mOk = Number.isFinite(h(m)) && valid(m);
           if (mOk === prevOk) lo = m; else hi = m;
         }
-        const tb = ok ? hi : lo;
-        const vb = h(tb);
+        let tb = ok ? hi : lo, vb = h(tb), punct = false;
+        // Граница обычно «круглое» число (x = −3). Если в нём самом выражение не определено
+        // (0/0 у дроби с √(x + 3)), то это выколотая точка — корнем её не считаем.
+        const nice = Math.round(tb * 1e6) / 1e6;
+        if (Math.abs(nice - tb) < 1e-9) {
+          const vn = h(nice);
+          if (Number.isFinite(vn) && valid(nice)) { tb = nice; vb = vn; } else punct = true;
+        }
+        // Точку у границы всё равно ставим: между ней и соседней точкой сетки может быть
+        // корень (смена знака). У выколотой границы она помечена — сама корнем не считается.
         if (Number.isFinite(vb)) {
-          if (!ok) { ts.push(tb); hs.push(vb); }
-          ts.push(NaN); hs.push(NaN);
-          if (ok) { ts.push(tb); hs.push(vb); }
-        } else { ts.push(NaN); hs.push(NaN); }
+          if (!ok) push(tb, vb, punct);
+          push(NaN, NaN);
+          if (ok) push(tb, vb, punct);
+        } else push(NaN, NaN);
       }
-      ts.push(t); hs.push(ok ? v : NaN);
+      push(t, ok ? v : NaN);
       prevOk = ok;
     }
     const roots = [];
@@ -121,13 +134,13 @@ PL.solve = (function () {
       const v = hs[i];
       if (Number.isNaN(v)) { zeroRun = 0; validRun = 0; continue; }
       validRun++;
-      if (Math.abs(v) < TOL) {
+      if (Math.abs(v) < TOL && !edge[i]) {
         zeroRun++;
         if (zeroRun > 20) return { inf: true, roots: [] };
         roots.push(ts[i]);
       } else zeroRun = 0;
       const pv = hs[i - 1];
-      if (i > 0 && !Number.isNaN(pv) && Math.abs(pv) >= TOL && Math.abs(v) >= TOL && Math.sign(pv) !== Math.sign(v)) {
+      if (i > 0 && !Number.isNaN(pv) && (Math.abs(pv) >= TOL || edge[i - 1]) && (Math.abs(v) >= TOL || edge[i]) && Math.sign(pv) !== Math.sign(v) && pv !== 0 && v !== 0) {
         let lo = ts[i - 1], hi = ts[i], flo = pv;
         for (let k = 0; k < 60; k++) {
           const m = (lo + hi) / 2, fm = h(m);
@@ -137,7 +150,7 @@ PL.solve = (function () {
       }
       // касание: локальный минимум |h| без смены знака
       const nv = hs[i + 1];
-      if (i > 0 && !Number.isNaN(pv) && !Number.isNaN(nv) && Math.abs(v) >= TOL &&
+      if (i > 0 && !edge[i] && !Number.isNaN(pv) && !Number.isNaN(nv) && Math.abs(v) >= TOL &&
           Math.abs(v) <= Math.abs(pv) && Math.abs(v) <= Math.abs(nv) && Math.sign(pv) === Math.sign(v) && Math.sign(nv) === Math.sign(v)) {
         let lo = ts[i - 1], hi = ts[i + 1];
         for (let k = 0; k < 80; k++) {
@@ -167,10 +180,10 @@ PL.solve = (function () {
     }
     return null;
   }
-  function intersect(P, Q, p, box, N, n2d) {
+  function intersect(P, Q, p, box, N, n2d, box1D = 1e4) {
     const e = explicitH(P, Q, p);
     if (!e) return intersect2D(P, Q, p, box, n2d);
-    const r = roots1D(e.h, e.valid, -box, box, N);
+    const r = roots1D(e.h, e.valid, -box1D, box1D, N);
     return { inf: r.inf, pts: r.roots.map(e.xy) };
   }
 
@@ -281,7 +294,7 @@ PL.solve = (function () {
     const pts = [];
     let inf = false;
     for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
-      const r = intersect(P, Q, p, ct.box, N, n2d);
+      const r = intersect(P, Q, p, ct.box, N, n2d, ct.box1D);
       if (r.inf) inf = true;
       for (const pt of r.pts) {
         if (!pts.some(o => Math.hypot(o[0] - pt[0], o[1] - pt[1]) < 1e-5)) pts.push(pt);
@@ -356,7 +369,7 @@ PL.solve = (function () {
     for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
       const eIn = explicitH(P, Q, aIn);
       if (!eIn) continue;
-      const r = roots1D(eIn.h, eIn.valid, -ct.box, ct.box, N * 3).roots.sort((u, w) => u - w);
+      const r = roots1D(eIn.h, eIn.valid, -ct.box1D, ct.box1D, N * 3).roots.sort((u, w) => u - w);
       // самая близкая пара соседних корней
       let best = null;
       for (let k = 0; k + 1 < r.length; k++) if (!best || r[k + 1] - r[k] < best[1] - best[0]) best = [r[k], r[k + 1]];
