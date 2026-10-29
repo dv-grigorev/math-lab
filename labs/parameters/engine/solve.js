@@ -56,7 +56,55 @@ PL.solve = (function () {
     else if (isVar(R, vert) && !uses(L, vert)) curve.yOf = compile(L, map);
     else if (isVar(L, "x") && !uses(R, "x")) curve.xOf = compile(R, map);
     else if (isVar(R, "x") && !uses(L, "x")) curve.xOf = compile(L, map);
+    // Неявная, но квадратная по y (окружность, гипербола xy = 3) — две явные ветви y = …;
+    // считать по ним быстрее и точнее, чем по сетке на плоскости. Иначе пробуем по x.
+    if (!curve.yOf && !curve.xOf) curve.branches = quadBranches(curve, "y") || quadBranches(curve, "x");
     return curve;
+  }
+
+  // F(x, y) = A·y² + B·y + C при каждом x (коэффициенты — по значениям F в y = 0, ±1)?
+  // Если да — ветви y = (−B ± √(B² − 4AC)) / 2A (или y = −C/B, когда A = 0).
+  function quadBranches(curve, v) {
+    const F = v === "y" ? curve.F : (y, x, p) => curve.F(x, y, p);
+    const coef = (u, p) => {
+      const c = F(u, 0, p), f1 = F(u, 1, p), fm = F(u, -1, p);
+      return [(f1 + fm) / 2 - c, (f1 - fm) / 2, c];
+    };
+    // проверка на нескольких точках: F(u, t) должно совпадать с квадратным трёхчленом
+    let good = 0;
+    for (const u of [-3.7, -1.3, 0.6, 2.9, 5.3, 8.1]) for (const p of [-2.2, 0.7, 3.1]) {
+      const [A, B, C] = coef(u, p);
+      if (![A, B, C].every(Number.isFinite)) continue;
+      for (const t of [2, -2.5, 3.5]) {
+        const f = F(u, t, p);
+        if (!Number.isFinite(f)) continue;
+        if (Math.abs(f - (A * t * t + B * t + C)) > 1e-7 * (1 + Math.abs(f))) return null;
+        good++;
+      }
+    }
+    if (good < 8) return null;
+    const branch = (sg) => (u, p) => {
+      const [A, B, C] = coef(u, p);
+      if (Math.abs(A) < 1e-12) return Math.abs(B) < 1e-12 ? NaN : -C / B;
+      const D = B * B - 4 * A * C;
+      if (D < -1e-12) return NaN;
+      return (-B + sg * Math.sqrt(Math.max(D, 0))) / (2 * A);
+    };
+    return [1, -1].map(sg => {
+      const g = branch(sg);
+      return { ...curve, branches: null, ...(v === "y" ? { yOf: (x, _, p) => g(x, p) } : { xOf: (_, y, p) => g(y, p) }) };
+    });
+  }
+  // Пары кривых для подсчёта: если обе неявные, одну заменяем её явными ветвями
+  function pairs(ct) {
+    const out = [];
+    for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
+      const exp = (c) => c.yOf || c.xOf;
+      if (!exp(P) && !exp(Q) && P.branches) for (const b of P.branches) out.push([b, Q]);
+      else if (!exp(P) && !exp(Q) && Q.branches) for (const b of Q.branches) out.push([b, P]);
+      else out.push([P, Q]);
+    }
+    return out;
   }
 
   function compileTask(task) {
@@ -293,7 +341,7 @@ PL.solve = (function () {
   function solutions(ct, p, N = 20000, n2d = 500) {
     const pts = [];
     let inf = false;
-    for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
+    for (const [P, Q] of pairs(ct)) {
       const r = intersect(P, Q, p, ct.box, N, n2d, ct.box1D);
       if (r.inf) inf = true;
       for (const pt of r.pts) {
@@ -354,7 +402,16 @@ PL.solve = (function () {
       let b = (lo + hi) / 2;
       const nl = segs[i].n, nr = segs[i + 1].n, jump = Math.abs(nr - nl);
       let touch = null;
-      if (Number.isFinite(jump) && jump % 2 === 0) touch = nr > nl ? touchValue(ct, sr, sl, N) : touchValue(ct, sl, sr, N);
+      if (Number.isFinite(jump) && jump % 2 === 0) {
+        touch = nr > nl ? touchValue(ct, sr, sl, N) : touchValue(ct, sl, sr, N);
+        // обе кривые неявные (две окружности) — уточняем границу точным подсчётом
+        if (touch === null) {
+          const exact = (m) => countWhere(solutions(ct, m), where, m);
+          let u = sl, w = sr;
+          for (let k = 0; k < 36; k++) { const m = (u + w) / 2; if (exact(m) === nl) u = m; else w = m; }
+          touch = (u + w) / 2;
+        }
+      }
       if (touch !== null) b = touch;
       segs[i].hi = segs[i + 1].lo = b;
       if (touch === null) continue;
@@ -366,7 +423,7 @@ PL.solve = (function () {
   // Точное значение a, при котором две близкие точки пересечения сливаются (касание).
   // aIn — точки ещё есть, aOut — уже нет. Ищем ноль «высоты» экстремума h между этими точками.
   function touchValue(ct, aIn, aOut, N) {
-    for (const P of ct.parts[0]) for (const Q of ct.parts[1]) {
+    for (const [P, Q] of pairs(ct)) {
       const eIn = explicitH(P, Q, aIn);
       if (!eIn) continue;
       const r = roots1D(eIn.h, eIn.valid, -ct.box1D, ct.box1D, N * 3).roots.sort((u, w) => u - w);
@@ -374,18 +431,20 @@ PL.solve = (function () {
       let best = null;
       for (let k = 0; k + 1 < r.length; k++) if (!best || r[k + 1] - r[k] < best[1] - best[0]) best = [r[k], r[k + 1]];
       if (!best || best[1] - best[0] > 3) continue;
-      const tm = (best[0] + best[1]) / 2, w = Math.max(4 * (best[1] - best[0]), 0.05);
+      const tm = (best[0] + best[1]) / 2, w = Math.max(1.5 * (best[1] - best[0]), 0.05);
       const s = -Math.sign(eIn.h(tm));
       if (!s) continue;
       // φ(a) = min s·h(t) около tm: при aIn < 0, при aOut > 0
       const phi = (a) => {
         const e = explicitH(P, Q, a);
+        // вне области определения (край полуокружности) считаем значение «очень большим»
+        const f = (t) => { const v = s * e.h(t); return Number.isFinite(v) && e.valid(t) ? v : Infinity; };
         let lo = tm - w, hi = tm + w;
         for (let k = 0; k < 90; k++) {
           const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
-          if (s * e.h(m1) < s * e.h(m2)) hi = m2; else lo = m1;
+          if (f(m1) < f(m2)) hi = m2; else lo = m1;
         }
-        return s * e.h((lo + hi) / 2);
+        return f((lo + hi) / 2);
       };
       if (!(phi(aIn) < 0 && phi(aOut) > 0)) continue;
       let u = aIn, v = aOut;
@@ -427,13 +486,17 @@ PL.solve = (function () {
       const p = lo + (hi - lo) * i / 300;
       if (bs.every(b => Math.abs(b - p) > 1e-3)) probes.add(p);
     }
+    // Отдельные значения a (касания), которых нет в ответе, сетка не заметит — находим их картой.
+    // Так ловится ответ, где забыто, например, касание при a = 3 + √65.
+    try { for (const s of map(ct, [lo, hi], { samples: 300 }).special) probes.add(s.p); } catch (e) { /* без карты */ }
     const bad = [];
     for (const p of probes) {
       const want = PL.sets.contains(answerSet, p);
       const got = holds(ct, p);
       if (want !== got) bad.push({ a: p, want, got });
     }
-    return bad.sort((u, w) => u.a - w.a);
+    bad.sort((u, w) => u.a - w.a);
+    return bad.filter((x, i) => i === 0 || Math.abs(x.a - bad[i - 1].a) > 1e-6);
   }
 
   // ---------- Удобный диапазон a ----------

@@ -48,7 +48,13 @@ PL.sets = (function () {
 
   // Узнать точное число по приближённому: 2.8284271 → «2√2», 0.8944272 → «2√5/5», 1.3333 → «4/3».
   // Ищем (p + q√d)/n с небольшими n, q, d; не нашли — null.
-  const SQUAREFREE = [1, 2, 3, 5, 6, 7, 10, 11, 13, 14, 15, 17, 19, 21, 22, 23, 26, 29, 30, 31, 33, 34, 35, 37, 38, 39, 41, 42, 43, 46, 47];
+  // числа без квадратных множителей до 200: под корнем у ответов они и стоят (√65 и т. п.)
+  const SQUAREFREE = [];
+  for (let d = 1; d <= 200; d++) {
+    let ok = true;
+    for (let k = 2; k * k <= d; k++) if (d % (k * k) === 0) ok = false;
+    if (ok) SQUAREFREE.push(d);
+  }
   function recognize(v) {
     if (!Number.isFinite(v)) return null;
     let best = null;

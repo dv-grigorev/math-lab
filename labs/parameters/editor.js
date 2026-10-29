@@ -263,7 +263,7 @@
     const R = stage.s.range;
     const approx = V.approx(ct, R);
     const approxTxt = approx.length
-      ? approx.map(I => I.hi - I.lo < 1e-6 ? `{≈ ${E.fmtNum(I.lo)}}`
+      ? approx.map(I => I.hi - I.lo < (R[1] - R[0]) / 500 ? `{≈ ${E.fmtNum((I.lo + I.hi) / 2)}}`
           : `(${I.loInf ? "…" : "≈ " + E.fmtNum(I.lo)}; ${I.hiInf ? "…" : "≈ " + E.fmtNum(I.hi)})`).join(" ∪ ")
       : "таких значений нет";
     const hint = `<p>По графику, приближённо, для a от ${E.fmtNum(R[0])} до ${E.fmtNum(R[1])}: ${approxTxt}
@@ -276,7 +276,7 @@
         <p>Проверены концы промежутков ответа, точки между ними и частая сетка значений a.</p>${hint}</div>`;
     } else {
       setStatus(t, "bad");
-      const items = bad.slice(0, 5).map(b => `<li>при a = ${E.fmtNum(b.a)}: по вашему ответу ${b.want ? "подходит" : "не подходит"}, а по графику — ${b.got ? "подходит" : "не подходит"}</li>`).join("");
+      const items = bad.slice(0, 5).map(b => `<li>при a = ${S.label(b.a)}: по вашему ответу ${b.want ? "подходит" : "не подходит"}, а по графику — ${b.got ? "подходит" : "не подходит"}</li>`).join("");
       $("check").innerHTML = `<div class="check-box bad"><b>✗ Ответ не сходится с подсчётом.</b><ul>${items}</ul>
         ${bad.length > 5 ? `<p>…и ещё ${bad.length - 5} таких значений.</p>` : ""}
         <p>Проверьте ответ и запись уравнений. Нажмите на ось a под графиком, чтобы посмотреть картинку при этих значениях.</p>${hint}</div>`;

@@ -400,13 +400,14 @@ PL.expr = (function () {
       const r = PL.sets.tryParse(inSet[2]);
       if (!r.error) return formulaHTML(inSet[1]) + " ∈ " + PL.sets.formatHTML(r.set);
     }
-    const parts = src.split(/(<=|>=|!=|=|<|>|≤|≥|;|,(?!\d)| при | и )/);
+    const parts = src.split(/(<=|>=|!=|=|<|>|≤|≥|≈|⇒|⇔|;|,(?!\d)| при | и )/);
     return parts.map(p => {
-      const sym = { "<=": "≤", ">=": "≥", "!=": "≠", "=": "=", "<": "&lt;", ">": "&gt;", "≤": "≤", "≥": "≥", ";": ";", ",": "," }[p];
+      const sym = { "<=": "≤", ">=": "≥", "!=": "≠", "=": "=", "<": "&lt;", ">": "&gt;", "≤": "≤", "≥": "≥", "≈": "≈", "⇒": "⇒", "⇔": "⇔", ";": ";", ",": "," }[p];
       if (sym) return ` ${sym} `;
       if (p === " при " || p === " и ") return p;
       if (!p.trim()) return p;
-      try { return html(parse(p)); } catch (e) { return p.replace(/-/g, MINUS).replace(/\b([a-z])(?:_(\d+))?\b/g, (m, v, sub) => `<i>${v}</i>` + (sub ? `<sub>${sub}</sub>` : "")); }
+      try { return html(parse(p)); } catch (e) { return p.replace(/-/g, MINUS).replace(/sqrt\(([^()]+)\)/g, "√$1")
+        .replace(/\b([a-zA-Z])(?:_(\d+))?\b/g, (m, v, sub) => `<i>${v}</i>` + (sub ? `<sub>${sub}</sub>` : "")); }
     }).join("").replace(/ ([;,]) /g, "$1 ").replace(/\s+/g, " ").trim();
   }
 
