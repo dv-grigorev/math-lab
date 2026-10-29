@@ -53,7 +53,8 @@
 <header class="lab-header">
   <a class="back" href="index.html">← К тренажёру</a>
   <h1>Конструктор задач</h1>
-  <p>Для учителя: составьте задачу, проверьте ответ на графике и сохраните в банк.</p>
+  <p>Для учителя: составьте задачу, проверьте ответ на графике и сохраните в банк.
+    Конструктора нет на сайте — он открывается только с вашего компьютера.</p>
 </header>
 
 <main class="pl">
@@ -135,13 +136,17 @@
         <h2>Как сохранить в банк</h2>
         <ol>
           <li>Нажмите <b>«Скачать teacher.js»</b> — в файле все задачи из списка выше.</li>
-          <li>На GitHub откройте репозиторий <code>math-lab</code>, переключитесь на ветку <b>dev</b>, папка
-            <code>labs/parameters/bank</code> → <b>Add file → Upload files</b>, перетащите скачанный файл, <b>Commit changes</b>.</li>
+          <li>Положите файл в банк — любым из способов:
+            замените им <code>math-lab/labs/parameters/bank/teacher.js</code> на компьютере;
+            или на GitHub в ветке <b>dev</b> откройте папку <code>labs/parameters/bank</code> → <b>Add file → Upload files</b> → <b>Commit changes</b>;
+            или просто пришлите файл Claude.</li>
           <li>Автопроверка сама пересчитает все ответы. Если всё сходится — откройте pull request <code>dev → main</code>
             и нажмите <b>Merge</b>: задачи появятся на сайте. Если нет — GitHub покажет, в какой задаче ошибка.</li>
         </ol>
-        <p class="hint" style="margin:0">Или просто пришлите файл Claude — он добавит его сам.
-          Пока вы работаете, черновик хранится в этом браузере и не пропадёт при перезагрузке страницы.</p>
+        <p class="hint" style="margin:0">Конструктор открывается двойным кликом по файлу
+          <code>math-lab/labs/parameters/editor.html</code>. Перед работой попросите Claude обновить папку проекта,
+          чтобы в списке были все задачи банка. Пока вы работаете, черновик хранится в этом браузере
+          и не пропадёт при перезагрузке страницы.</p>
         <div class="btn-row" style="margin-top:10px">
           <button class="btn primary" id="download">Скачать teacher.js</button>
           <button class="btn" id="copy">Скопировать текущую задачу</button>

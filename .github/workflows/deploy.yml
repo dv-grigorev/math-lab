@@ -35,6 +35,8 @@ jobs:
           mkdir _site
           cp -r index.html catalog.js shared labs _site/
           find _site -name '*.md' -delete
+          # Конструктор задач — только для учителя: открывается с его компьютера, на сайт не попадает
+          rm _site/labs/parameters/editor.html _site/labs/parameters/editor.js
           # Сброс кэша: к своим .js и .css добавляем версию (номер коммита),
           # чтобы после обновления браузер ученика не смешал старые и новые файлы.
           v="${GITHUB_SHA::8}"
