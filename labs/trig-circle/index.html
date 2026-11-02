@@ -1,0 +1,721 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тригонометрическая окружность — Математическая лаборатория</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<style>
+  sup { font-size: .62em; }
+  svg text { font-family: var(--font); }
+  .vals, .answer { text-align: center; font-family: var(--font-math); font-size: clamp(18px, 2.6vw, 22px); }
+  .vals { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 22px; }
+  .vals > span { white-space: nowrap; }
+  .vals .hid, .answer .note { font-family: var(--font); font-size: 15px; color: var(--muted); white-space: normal; }
+  .answer .alt { font-size: .8em; color: var(--muted); }
+  .c-sin { color: var(--warm); } .c-cos { color: var(--accent); }
+  .c-tg { color: var(--good); } .c-ctg { color: var(--target); }
+  .plot.drag { cursor: grab; } .plot.pick { cursor: pointer; }
+  .sub { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+  .question { font-size: 15px; margin: 10px 0 8px; }
+  .question .math { font-size: 22px; white-space: nowrap; }
+  .ans-row { display: flex; gap: 6px; }
+  .ans-row input { flex: 1 1 auto; min-width: 0; padding: 8px 12px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--panel); font-size: 18px; }
+  .keys { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .keys .btn { min-width: 44px; font-size: 18px; padding: 4px 10px; }
+  .status { font-size: 15px; min-height: 1.5em; margin-top: 8px; }
+  .status.win { color: var(--good); font-weight: 700; }
+  .status.miss { color: var(--warm); }
+  .opts { display: grid; gap: 6px; margin-top: 10px; }
+  .opts:empty { display: none; }
+  .opt { text-align: left; font-family: var(--font-math); font-size: 18px; }
+  .opt.right { border: 2px solid var(--good); }
+  .opt.wrong { border: 2px solid var(--warm); }
+  .opt:disabled { cursor: default; color: var(--ink); }
+  .unit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+<header class="lab-header">
+  <a class="back" href="../../index.html">← Все тренажёры</a>
+  <h1>Тригонометрическая окружность</h1>
+  <p>Поворачивайте точку — и смотрите, как меняются синус, косинус, тангенс и котангенс.</p>
+</header>
+
+<main class="lab">
+  <section class="panel">
+    <div class="card">
+      <h2>Режим</h2>
+      <div class="chips" id="modes" role="group" aria-label="Режим">
+        <button class="chip" data-m="circle">Окружность</button>
+        <button class="chip" data-m="eq">Уравнения</button>
+        <button class="chip" data-m="deg">Тренировка: градусы ↔ радианы</button>
+        <button class="chip" data-m="train">Тренировка: уравнения</button>
+      </div>
+    </div>
+
+    <div class="card" data-modes="circle">
+      <h2>Угол</h2>
+      <div id="degBox"></div>
+      <div class="btn-row">
+        <button class="btn" id="minus15">−15°</button>
+        <button class="btn" id="plus15">+15°</button>
+      </div>
+      <p class="sub">Точку на окружности можно тащить пальцем или мышью.</p>
+    </div>
+
+    <div class="card" data-modes="eq">
+      <h2>Уравнение</h2>
+      <div class="chips" id="fchips" role="group" aria-label="Функция"></div>
+      <div id="aBox" style="margin-top:12px"></div>
+      <div class="chips" id="achips" role="group" aria-label="Табличные значения"></div>
+      <div class="toggles" style="margin-top:12px">
+        <label><input type="checkbox" id="tRange" checked> <span id="rangeLbl"></span></label>
+      </div>
+    </div>
+
+    <div class="card" data-modes="deg">
+      <h2>Градусы ↔ радианы</h2>
+      <div class="chips" id="dirChips" role="group" aria-label="Направление">
+        <button class="chip" data-d="d2r">° → рад</button>
+        <button class="chip" data-d="r2d">рад → °</button>
+        <button class="chip" data-d="mix">вперемешку</button>
+      </div>
+      <div class="question" id="degQ"></div>
+      <div class="ans-row">
+        <input id="degIn" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Ответ">
+        <button class="btn primary" id="degCheck">Проверить</button>
+      </div>
+      <div class="keys" id="degKeys">
+        <button class="btn" data-k="π">π</button>
+        <button class="btn" data-k="/">/</button>
+        <button class="btn" data-k="−">−</button>
+        <button class="btn" data-k="⌫" aria-label="Стереть">⌫</button>
+      </div>
+      <div class="status" id="degStatus"></div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn" id="degNext">Следующее</button></div>
+      <p class="sub" id="degScore"></p>
+    </div>
+
+    <div class="card" data-modes="train">
+      <h2>Решите уравнение</h2>
+      <div class="question" id="trQ"></div>
+      <p class="sub" id="trStep" style="margin:0 0 10px"></p>
+      <div class="btn-row"><button class="btn primary" id="trCheck">Проверить точки</button></div>
+      <div class="opts" id="trOpts"></div>
+      <div class="status" id="trStatus"></div>
+      <div class="btn-row" style="margin-top:8px"><button class="btn" id="trNext">Следующее</button></div>
+      <p class="sub" id="trScore"></p>
+    </div>
+
+    <div class="card">
+      <h2>Показать</h2>
+      <div class="toggles">
+        <label><input type="checkbox" id="tTan"> ось тангенсов</label>
+        <label><input type="checkbox" id="tCot"> ось котангенсов</label>
+        <label><input type="checkbox" id="tLbl" checked> подписи углов</label>
+        <label><input type="checkbox" id="tVal" checked> значения sin, cos, tg, ctg</label>
+      </div>
+      <div class="unit-row">
+        углы в
+        <div class="chips" id="unitChips" role="group" aria-label="Единицы углов">
+          <button class="chip" data-u="deg">градусах</button>
+          <button class="chip" data-u="rad">радианах</button>
+        </div>
+      </div>
+      <div class="btn-row" style="margin-top:12px">
+        <button class="btn" id="reset">Сбросить</button>
+        <button class="btn" id="copy">Скопировать ссылку</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="stage">
+    <div class="card">
+      <div class="formula" id="formula" aria-live="polite"></div>
+      <div class="vals" id="vals"></div>
+      <div class="answer" id="answer"></div>
+      <svg class="plot" id="plot" viewBox="0 0 640 640" role="img" aria-label="Тригонометрическая окружность"></svg>
+      <div class="legend" id="legend"></div>
+    </div>
+  </section>
+
+  <section class="card tasks">
+    <h2>Задания</h2>
+    <ol>
+      <li>Выключите «значения». Поставьте α = 120°. Предскажите знаки и значения sin α и cos α. Включите значения — проверьте.</li>
+      <li>В какой четверти лежит угол 210°? Какие знаки у sin, cos и tg? Сначала ответьте, потом проверьте.
+        <details><summary>Ответ</summary>
+          III четверть: точка левее и ниже центра, поэтому cos α &lt; 0 и sin α &lt; 0, а tg α = sin α / cos α &gt; 0.
+        </details>
+      </li>
+      <li>Включите ось тангенсов и подведите точку к 90°. Что происходит с тангенсом? Почему tg 90° не существует?
+        <details><summary>Объяснение</summary>
+          Прямая OP становится вертикальной — параллельной оси тангенсов — и не пересекает её. Точки пересечения нет, значит, нет и значения. Это то же, что деление на cos 90° = 0.
+        </details>
+      </li>
+      <li>Поставьте α = 30°, потом 390° и −330°. Что вы заметили?
+        <details><summary>Объяснение</summary>
+          Это одна и та же точка: углы отличаются на 360°·k. Поэтому значения всех функций совпадают — отсюда «+ 2πn» в ответах уравнений.
+        </details>
+      </li>
+      <li>Режим «Уравнения», sin x = ½. Предскажите: сколько точек-решений на окружности? Какие это углы? Проверьте.
+        <details><summary>Ответ</summary>
+          Две точки: π/6 и 5π/6 (прямая y = ½ пересекает окружность дважды). Каждая точка даёт серию корней с шагом 2π.
+        </details>
+      </li>
+      <li>При каких a уравнение cos x = a не имеет решений? Проверьте ползунком.
+        <details><summary>Ответ</summary>
+          При a &lt; −1 и a &gt; 1: прямая x = a не пересекает окружность.
+        </details>
+      </li>
+      <li>Почему в ответе для tg x = a стоит «+ πn», а для cos x = a — «+ 2πn»?
+        <details><summary>Объяснение</summary>
+          Прямая через центр пересекает окружность в двух противоположных точках, они отличаются ровно на π. Шагом π мы обходим обе точки одной формулой.
+        </details>
+      </li>
+      <li>Режим «Тренировка: уравнения»: решите 5 уравнений подряд без единой ошибки.</li>
+    </ol>
+  </section>
+</main>
+
+<script src="../../shared/ui.js"></script>
+<script src="trig.js"></script>
+<script>
+(function () {
+  const { urlState, MINUS } = Lab;
+  const { rat, rEq, piText, piHTML, degText, tok, recognize, aInfo, valueHTML, mainRat, ARC, FN, bounded,
+    correctAnswer, answerHTML, distractors, shuffle, eqAnswerHTML, eqPoints, parseRad, parseDeg } = TC;
+  const PI = Math.PI;
+
+  // ---------- Состояние ----------
+  const MODES = ["circle", "eq", "deg", "train"];
+  const FUNCS = ["sin", "cos", "tg", "ctg"];
+  const TABLE = [0, 30, 45, 60, 90, 120, 135, 150, 180, 210, 225, 240, 270, 300, 315, 330];
+  const A_CHIPS = {
+    sincos: ["-1", "-s3/2", "-s2/2", "-1/2", "0", "1/2", "s2/2", "s3/2", "1"],
+    tgctg: ["-s3", "-1", "-s3/3", "0", "s3/3", "1", "s3"],
+  };
+  const aMax = f => (bounded(f) ? 1.5 : 2);
+  const snapDeg = d => Math.max(-720, Math.min(720, Math.round(d / 15) * 15));
+  function validA(s, f) {
+    if (tok(s) && Math.abs(tok(s).v) <= aMax(f)) return s;
+    const n = parseFloat(s);
+    if (!Number.isFinite(n)) return "1/2";
+    const v = Math.max(-aMax(f), Math.min(aMax(f), Math.round(n * 100) / 100));
+    return recognize(v) || String(v);
+  }
+
+  const urlF = urlState.get("f", "sin");
+  const state = {
+    mode: MODES.includes(urlState.get("m", "circle")) ? urlState.get("m", "circle") : "circle",
+    deg: snapDeg(urlState.getNum("t", 30)),
+    f: FUNCS.includes(urlF) ? urlF : "sin",
+    a: "1/2",
+    tan: urlState.get("tan", "0") === "1",
+    cot: urlState.get("cot", "0") === "1",
+    lbl: urlState.get("lbl", "1") !== "0",
+    val: urlState.get("val", "1") !== "0",
+    unit: urlState.get("u", "rad") === "deg" ? "deg" : "rad",
+    range: urlState.get("r", "1") !== "0",
+    dir: ["d2r", "r2d", "mix"].includes(urlState.get("d", "mix")) ? urlState.get("d", "mix") : "mix",
+  };
+  state.a = validA(urlState.get("a", "1/2"), state.f);
+
+  // ---------- Интерфейс ----------
+  const $ = id => document.getElementById(id);
+  const svg = $("plot");
+
+  document.querySelectorAll("#modes .chip").forEach(b => b.addEventListener("click", () => {
+    state.mode = b.dataset.m;
+    if (state.mode === "deg" && !dq) newDeg();
+    if (state.mode === "train" && !tr) newTrain();
+    update();
+  }));
+
+  const sDeg = Lab.slider($("degBox"), {
+    label: "угол α, °", min: -720, max: 720, step: 15, value: state.deg,
+    onInput: v => { state.deg = v; update(); },
+  });
+  $("minus15").addEventListener("click", () => setDeg(state.deg - 15));
+  $("plus15").addEventListener("click", () => setDeg(state.deg + 15));
+  function setDeg(d) { state.deg = snapDeg(d); sDeg.set(state.deg); update(); }
+
+  for (const f of FUNCS) {
+    const b = document.createElement("button");
+    b.className = "chip"; b.dataset.f = f; b.textContent = f + " x = a";
+    b.addEventListener("click", () => { state.f = f; state.a = validA(state.a, f); syncA(); update(); });
+    $("fchips").appendChild(b);
+  }
+  const sA = Lab.slider($("aBox"), {
+    label: "число <i>a</i>", min: -1.5, max: 1.5, step: 0.05, value: 0.5,
+    onInput: v => { state.a = recognize(v) || String(+v.toFixed(2)); update(); },
+  });
+  const sAInput = sA.el.querySelector("input"), sAOut = sA.el.querySelector("output");
+  // Ползунок и кнопки табличных значений под текущую функцию
+  function syncA() {
+    const m = aMax(state.f);
+    sAInput.min = -m; sAInput.max = m;
+    sA.set(aInfo(state.a).v);
+    const keys = A_CHIPS[bounded(state.f) ? "sincos" : "tgctg"];
+    $("achips").innerHTML = "";
+    for (const k of keys) {
+      const b = document.createElement("button");
+      b.className = "chip"; b.dataset.a = k; b.textContent = tok(k).text;
+      b.addEventListener("click", () => { state.a = k; sA.set(tok(k).v); update(); });
+      $("achips").appendChild(b);
+    }
+  }
+  $("tRange").checked = state.range;
+  $("tRange").addEventListener("change", e => { state.range = e.target.checked; update(); });
+
+  const TOGGLES = { tTan: "tan", tCot: "cot", tLbl: "lbl", tVal: "val" };
+  for (const [id, key] of Object.entries(TOGGLES)) {
+    $(id).checked = state[key];
+    $(id).addEventListener("change", e => { state[key] = e.target.checked; update(); });
+  }
+  document.querySelectorAll("#unitChips .chip").forEach(b => b.addEventListener("click", () => { state.unit = b.dataset.u; update(); }));
+
+  $("reset").addEventListener("click", () => {
+    Object.assign(state, { deg: 30, f: "sin", a: "1/2", tan: false, cot: false, lbl: true, val: true, unit: "rad", range: true });
+    for (const [id, key] of Object.entries(TOGGLES)) $(id).checked = state[key];
+    $("tRange").checked = true;
+    sDeg.set(30); syncA();
+    if (state.mode === "deg") { degScore = { right: 0, total: 0 }; newDeg(); }
+    if (state.mode === "train") { trScore = { right: 0, total: 0 }; newTrain(); }
+    update();
+  });
+  Lab.copyLink($("copy"));
+  // Строка-итог под заданием: kind = "win" | "miss" | ""
+  function status(id, kind, html) { $(id).className = "status " + kind; $(id).innerHTML = html; }
+
+  // ---------- Тренировка: градусы ↔ радианы ----------
+  const DEG_POOL = [];
+  for (let d = 15; d <= 360; d += 15) DEG_POOL.push(d);
+  DEG_POOL.push(-30, -45, -60, -90, -120, -135, -150, -180, -270, -360, 390, 405, 420, 450, 540, 600, 630, 720,
+    10, 18, 20, 36, 40, 72, 80, 108, 140, 160, 200);
+  let dq = null, degScore = { right: 0, total: 0 };
+  const degIn = $("degIn");
+
+  function newDeg() {
+    let d;
+    do d = DEG_POOL[Math.floor(Math.random() * DEG_POOL.length)]; while (dq && d === dq.deg);
+    const dir = state.dir === "mix" ? (Math.random() < 0.5 ? "d2r" : "r2d") : state.dir;
+    dq = { deg: d, dir, checked: false };
+    degIn.value = "";
+    degIn.placeholder = dir === "d2r" ? "например, 5π/6" : "например, 150";
+    status("degStatus", "", "");
+  }
+  function checkDeg() {
+    if (!dq) return;
+    const r = rat(dq.deg, 180);
+    const how = dq.dir === "d2r"
+      ? `${degText(dq.deg)} = ${String(dq.deg).replace("-", MINUS)}·π/180 = ${piHTML(r)}`
+      : `${piHTML(r)} = ${String(r[0]).replace("-", MINUS)}·180°/${r[1]} = ${degText(dq.deg)}`;
+    let ok;
+    if (dq.dir === "d2r") {
+      const ans = parseRad(degIn.value);
+      if (!ans) return status("degStatus", "miss", degIn.value.trim() ? "Запишите ответ через π, например 5π/6 (π — кнопкой ниже)." : "Введите ответ.");
+      ok = rEq(ans, r);
+    } else {
+      const ans = parseDeg(degIn.value);
+      if (ans === null) return status("degStatus", "miss", "Введите число градусов, например 150.");
+      ok = Math.abs(ans - dq.deg) < 1e-9;
+    }
+    if (!dq.checked) { degScore.total++; if (ok) degScore.right++; }
+    dq.checked = true;
+    status("degStatus", ok ? "win" : "miss", (ok ? "Верно! " : "Неверно. ") + `<span class="math">${how}</span>`);
+    update();
+  }
+  $("degCheck").addEventListener("click", checkDeg);
+  $("degNext").addEventListener("click", () => { newDeg(); update(); });
+  degIn.addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    if (dq && dq.checked && $("degStatus").classList.contains("win")) { newDeg(); update(); } else checkDeg();
+  });
+  document.querySelectorAll("#degKeys .btn").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.k, s = degIn.selectionStart ?? degIn.value.length, e = degIn.selectionEnd ?? s;
+    if (k === "⌫") {
+      if (s !== e) degIn.setRangeText("", s, e, "end");
+      else if (s > 0) degIn.setRangeText("", s - 1, s, "end");
+    } else degIn.setRangeText(k, s, e, "end");
+  }));
+  document.querySelectorAll("#dirChips .chip").forEach(b => b.addEventListener("click", () => {
+    state.dir = b.dataset.d; newDeg(); update();
+  }));
+
+  // ---------- Тренировка: уравнения ----------
+  const TR_KEYS = {
+    sincos: ["0", "1/2", "-1/2", "s2/2", "-s2/2", "s3/2", "-s3/2", "1", "-1"],
+    tgctg: ["0", "s3/3", "-s3/3", "1", "-1", "s3", "-s3"],
+    none: ["s2", "-s2", "s3", "2", "-2"],
+  };
+  let tr = null, trScore = { right: 0, total: 0 };
+  function newTrain() {
+    let f, key;
+    do {
+      f = FUNCS[Math.floor(Math.random() * 4)];
+      const list = bounded(f) && Math.random() < 0.12 ? TR_KEYS.none : TR_KEYS[bounded(f) ? "sincos" : "tgctg"];
+      key = list[Math.floor(Math.random() * list.length)];
+    } while (tr && tr.f === f && tr.key === key);
+    const correct = correctAnswer(f, key);
+    const options = shuffle([correct, ...distractors(f, key, correct)]);
+    const good = new Set(TABLE.map((d, i) => (Math.abs(FN[f](d * PI / 180) - tok(key).v) < 1e-9 ? i : -1)).filter(i => i >= 0));
+    tr = { f, key, correct, options, good, sel: new Set(), stage: 1, pointsOk: false, chosen: null };
+    status("trStatus", "", "");
+  }
+  $("trCheck").addEventListener("click", () => {
+    if (!tr || tr.stage !== 1) return;
+    tr.pointsOk = tr.sel.size === tr.good.size && [...tr.sel].every(i => tr.good.has(i));
+    tr.stage = 2;
+    status("trStatus", tr.pointsOk ? "win" : "miss", tr.pointsOk
+      ? (tr.good.size ? "Точки верные!" : "Верно: таких точек нет.")
+      : "Не совсем. Зелёные — верные точки, оранжевые — лишние, зелёный пунктир — пропущенные.");
+    update();
+  });
+  $("trNext").addEventListener("click", () => { newTrain(); update(); });
+  function chooseOption(i) {
+    if (!tr || tr.stage !== 2) return;
+    tr.chosen = i; tr.stage = 3;
+    const ok = tr.options[i] === tr.correct;
+    trScore.total++;
+    if (ok && tr.pointsOk) trScore.right++;
+    status("trStatus", ok ? "win" : "miss", ok
+      ? (tr.pointsOk ? "Верно! Задача решена." : "Ответ верный, но точки были отмечены с ошибкой.")
+      : "Неверно — правильный ответ выделен зелёным.");
+    update();
+  }
+
+  // ---------- Рисование ----------
+  const NS = "http://www.w3.org/2000/svg";
+  const C0 = 320, R = 150;   // центр и радиус окружности в координатах SVG
+  const X = x => C0 + x * R, Y = y => C0 - y * R;
+  function el(tag, attrs, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    (parent || svg).appendChild(e);
+    return e;
+  }
+  let C;   // цвета темы
+  let E = 2.13, A = 2.05;   // видимая область: |x|, |y| ≤ E (в радиусах); оси — до A
+  function text(x, y, str, attrs = {}) {
+    const t = el("text", { x, y, "font-size": 16, fill: C("--ink"), stroke: C("--panel"), "stroke-width": 4,
+      "paint-order": "stroke", "stroke-linejoin": "round", ...attrs });
+    t.textContent = str;
+    return t;
+  }
+  // Подпись снаружи окружности в направлении угла t
+  function outside(t, str, gap, attrs) {
+    const c = Math.cos(t), s = Math.sin(t);
+    const anchor = Math.abs(c) < 0.35 ? "middle" : c > 0 ? "start" : "end";
+    const x = X(c) + c * gap, y = Y(s) - s * gap + 6 - (s > 0.9 ? 4 : 0) + (s < -0.9 ? 8 : 0);
+    return text(x, y, str, { "text-anchor": anchor, ...attrs });
+  }
+  const angLabel = d => (state.unit === "deg" ? degText(d) : piText(rat(d, 180)));
+
+  function marker(id, color) {
+    const m = el("marker", { id, viewBox: "0 0 10 10", refX: 8, refY: 5, markerWidth: 6, markerHeight: 6, orient: "auto-start-reverse" }, svg.querySelector("defs"));
+    el("path", { d: "M0 0 L10 5 L0 10 z", fill: color }, m);
+  }
+
+  function drawBase(showTan, showCot, showLbl, skip) {
+    const ax = { stroke: C("--axis"), "stroke-width": 1.5, "marker-end": "url(#arrAx)" };
+    el("line", { x1: X(-A), y1: Y(0), x2: X(A + 0.03), y2: Y(0), ...ax });
+    el("line", { x1: X(0), y1: Y(-A), x2: X(0), y2: Y(A + 0.03), ...ax });
+    const tick = { "font-size": 14, fill: C("--muted") };
+    text(X(A + 0.03) - 4, Y(0) + 22, "x", { ...tick, "text-anchor": "end", "font-style": "italic" });
+    text(X(0) + 12, Y(A + 0.03) + 12, "y", { ...tick, "font-style": "italic" });
+    text(X(0) - 6, Y(0) + 18, "0", { ...tick, "text-anchor": "end" });
+    text(X(1) - 6, Y(0) + 18, "1", { ...tick, "text-anchor": "end" });
+    text(X(-1) + 6, Y(0) + 18, MINUS + "1", tick);
+    text(X(0) + 6, Y(1) + 18, "1", tick);
+    text(X(0) + 6, Y(-1) - 8, MINUS + "1", tick);
+    if (showLbl) {
+      const q = { "font-size": 20, fill: C("--muted"), opacity: 0.45, "text-anchor": "middle", stroke: "none" };
+      [["I", 1, 1], ["II", -1, 1], ["III", -1, -1], ["IV", 1, -1]].forEach(([n, sx, sy]) => text(X(sx * 0.42), Y(sy * 0.42) + 7, n, q));
+    }
+    el("circle", { cx: X(0), cy: Y(0), r: R, fill: "none", stroke: C("--ink"), "stroke-width": 2 });
+
+    const marks = [[-1, "−1"], [1, "1"], [-Math.sqrt(3), "−√3"], [Math.sqrt(3), "√3"]];
+    if (showTan) {
+      const g = C("--good");
+      el("line", { x1: X(1), y1: Y(-A), x2: X(1), y2: Y(A), stroke: g, "stroke-width": 2 });
+      text(X(1) + 8, Y(A) + 14, "tg", { fill: g, "font-weight": 700 });
+      for (const [v, s] of marks) {
+        el("line", { x1: X(1) - 5, y1: Y(v), x2: X(1) + 5, y2: Y(v), stroke: g, "stroke-width": 2 });
+        text(X(1) - 9, Y(v) + 5, s, { "font-size": 13, fill: g, "text-anchor": "end" });
+      }
+    }
+    if (showCot) {
+      const p = C("--target");
+      el("line", { x1: X(-A), y1: Y(1), x2: X(A), y2: Y(1), stroke: p, "stroke-width": 2 });
+      text(X(A), Y(1) - 10, "ctg", { fill: p, "font-weight": 700, "text-anchor": "end" });
+      for (const [v, s] of marks) {
+        el("line", { x1: X(v), y1: Y(1) - 5, x2: X(v), y2: Y(1) + 5, stroke: p, "stroke-width": 2 });
+        text(X(v), Y(1) + 19, s, { "font-size": 13, fill: p, "text-anchor": "middle" });
+      }
+    }
+    for (const d of TABLE) {
+      const t = d * PI / 180;
+      el("circle", { cx: X(Math.cos(t)), cy: Y(Math.sin(t)), r: 3.5, fill: C("--axis") });
+      if (showLbl && !skip.some(([u, w]) => Math.cos(t - u) > Math.cos(w))) outside(t, angLabel(d), 10);   // не налезать на подписи решений
+    }
+  }
+
+  // Точка на угле deg: дуга-спираль поворота и радиус; full — ещё проекции, tg/ctg и «ручка» для пальца
+  function drawAngle(deg, full) {
+    const t = deg * PI / 180, c = Math.cos(t), s = Math.sin(t), muted = C("--muted");
+    if (deg !== 0) {
+      let d = "";
+      const N = Math.max(16, Math.ceil(Math.abs(deg) / 3));
+      for (let i = 0; i <= N; i++) {
+        const th = t * i / N, r = 26 + 9 * Math.abs(th) / (2 * PI);
+        d += (i ? "L" : "M") + (C0 + r * Math.cos(th)).toFixed(1) + " " + (C0 - r * Math.sin(th)).toFixed(1);
+      }
+      el("path", { d, fill: "none", stroke: muted, "stroke-width": 2, "marker-end": "url(#arrSp)" });
+      const rm = 48 + 9 * Math.abs(t / 2) / (2 * PI), tm = Math.abs(deg) < 40 ? t + Math.sign(t) * 0.35 : t / 2;
+      text(C0 + rm * Math.cos(tm), C0 - rm * Math.sin(tm) + 6, "α", { fill: muted, "font-size": 18, "font-style": "italic", "text-anchor": "middle" });
+    }
+    if (full && state.val) {
+      const dash = { stroke: C("--muted"), "stroke-width": 1.5, "stroke-dasharray": "5 5" };
+      el("line", { x1: X(c), y1: Y(s), x2: X(c), y2: Y(0), ...dash });
+      el("line", { x1: X(c), y1: Y(s), x2: X(0), y2: Y(s), ...dash });
+      el("line", { x1: X(0), y1: Y(0), x2: X(c), y2: Y(0), stroke: C("--accent"), "stroke-width": 6, "stroke-linecap": "round" });
+      el("line", { x1: X(0), y1: Y(0), x2: X(0), y2: Y(s), stroke: C("--warm"), "stroke-width": 6, "stroke-linecap": "round" });
+      if (Math.abs(c) > 1e-9) text(X(c / 2), Y(0) + (s > 0 ? 24 : -12), "cos α", { fill: C("--accent"), "font-weight": 700, "text-anchor": "middle" });
+      if (Math.abs(s) > 1e-9) text(X(0) + (c < 0 ? -10 : 10), Math.abs(s) > 0.45 ? Y(s * 0.75) + 5 : Y(s) + (s > 0 ? -10 : 22), "sin α",
+        { fill: C("--warm"), "font-weight": 700, "text-anchor": c < 0 ? "end" : "start" });
+    }
+    const clamp = v => Math.max(-A, Math.min(A, v));
+    if (full && state.tan && Math.abs(c) > 1e-9) {
+      const tg = s / c, g = C("--good");
+      el("line", { x1: X(c), y1: Y(s), x2: X(1), y2: Y(tg), stroke: g, "stroke-width": 2 });
+      el("circle", { cx: X(1), cy: Y(tg), r: 6, fill: g, stroke: C("--panel"), "stroke-width": 2 });
+      if (state.val) text(X(1) + 12, Y(clamp(tg)) + 5, "tg α", { fill: g, "font-weight": 700 });
+    }
+    if (full && state.cot && Math.abs(s) > 1e-9) {
+      const ct = c / s, p = C("--target");
+      el("line", { x1: X(c), y1: Y(s), x2: X(ct), y2: Y(1), stroke: p, "stroke-width": 2 });
+      el("circle", { cx: X(ct), cy: Y(1), r: 6, fill: p, stroke: C("--panel"), "stroke-width": 2 });
+      if (state.val) text(X(clamp(ct)) + (ct < -1.2 ? 10 : -10), Y(1) - 10, "ctg α", { fill: p, "font-weight": 700, "text-anchor": ct < -1.2 ? "start" : "end" });
+    }
+    el("line", { x1: X(0), y1: Y(0), x2: X(c), y2: Y(s), stroke: C("--ink"), "stroke-width": 2.5 });
+    if (full) el("circle", { cx: X(c), cy: Y(s), r: 26, fill: "transparent" });
+    el("circle", { cx: X(c), cy: Y(s), r: 9, fill: C("--ink"), stroke: C("--panel"), "stroke-width": 3 });
+  }
+
+  function drawEq(f, a, pts, showRange, dots) {
+    const v = a.v, warm = C("--warm"), acc = C("--accent");
+    if (showRange) {
+      const [t1, t2, open] = { sin: [-PI / 2, PI / 2, false], cos: [0, PI, false], tg: [-PI / 2, PI / 2, true], ctg: [0, PI, true] }[f];
+      let d = "";
+      for (let i = 0; i <= 60; i++) { const th = t1 + (t2 - t1) * i / 60; d += (i ? "L" : "M") + X(Math.cos(th)).toFixed(1) + " " + Y(Math.sin(th)).toFixed(1); }
+      el("path", { d, fill: "none", stroke: acc, "stroke-width": 12, opacity: 0.22 });
+      for (const th of [t1, t2]) el("circle", { cx: X(Math.cos(th)), cy: Y(Math.sin(th)), r: 6, fill: open ? C("--panel") : acc, stroke: acc, "stroke-width": 2.5 });
+    }
+    let p1, p2;
+    if (f === "sin") { p1 = [-E, v]; p2 = [E, v]; }
+    if (f === "cos") { p1 = [v, -E]; p2 = [v, E]; }
+    if (f === "tg") { const k = 3 / Math.hypot(1, v); p1 = [-k, -k * v]; p2 = [k, k * v]; }
+    if (f === "ctg") { const k = 3 / Math.hypot(v, 1); p1 = [-k * v, -k]; p2 = [k * v, k]; }
+    el("line", { x1: X(p1[0]), y1: Y(p1[1]), x2: X(p2[0]), y2: Y(p2[1]), stroke: warm, "stroke-width": 2.5, "stroke-dasharray": "9 6" });
+    const mk = { sin: [0, v], cos: [v, 0], tg: [1, v], ctg: [v, 1] }[f];
+    el("circle", { cx: X(mk[0]), cy: Y(mk[1]), r: 6, fill: warm, stroke: C("--panel"), "stroke-width": 2 });
+    const lab = { "font-weight": 700, fill: warm, "font-size": 17 };
+    if (f === "sin") text(X(0) - 10, Y(v) - 8, a.text, { ...lab, "text-anchor": "end" });
+    if (f === "cos") text(X(v) + 8, Y(0) + 22, a.text, lab);
+    if (f === "tg") text(X(1) + 10, Y(v) + (v >= 0 ? -6 : 18), a.text, lab);
+    if (f === "ctg") text(X(v) + 8, Y(1) - 10, a.text, lab);
+    for (const p of pts) {
+      const c = Math.cos(p.t), s = Math.sin(p.t);
+      el("line", { x1: X(0), y1: Y(0), x2: X(c), y2: Y(s), stroke: acc, "stroke-width": 2 });
+      if (dots) el("circle", { cx: X(c), cy: Y(s), r: 9, fill: acc, stroke: C("--panel"), "stroke-width": 3 });
+      outside(p.t, p.label, 14, { fill: acc, "font-weight": 700, "font-size": 17 });
+    }
+  }
+
+  function drawTrainPoints() {
+    TABLE.forEach((d, i) => {
+      const t = d * PI / 180, cx = X(Math.cos(t)), cy = Y(Math.sin(t));
+      const sel = tr.sel.has(i), ok = tr.good.has(i);
+      if (tr.stage === 1) {
+        el("circle", { cx, cy, r: 9, fill: sel ? C("--accent") : C("--panel"), stroke: sel ? C("--accent") : C("--axis"), "stroke-width": 2.5 });
+      } else if (sel || ok) {
+        const col = ok ? C("--good") : C("--warm");
+        el("circle", { cx, cy, r: 9, fill: sel ? col : C("--panel"), stroke: col, "stroke-width": 3, "stroke-dasharray": sel ? "none" : "4 3" });
+      }
+    });
+  }
+
+  function draw() {
+    svg.innerHTML = "";
+    const css = getComputedStyle(document.documentElement);
+    C = n => css.getPropertyValue(n).trim();
+    el("defs", {});
+    marker("arrAx", C("--axis")); marker("arrSp", C("--muted"));
+
+    const m = state.mode;
+    let eqF = null, eqA = null;
+    if (m === "eq") { eqF = state.f; eqA = aInfo(state.a); }
+    if (m === "train" && tr.stage > 1) { eqF = tr.f; eqA = aInfo(tr.key); }
+    const pts = eqF ? eqPoints(eqF, eqA) : [];
+    const showTan = state.tan || eqF === "tg", showCot = state.cot || eqF === "ctg";
+    // без осей tg/ctg окружность крупнее (важно на телефоне)
+    const wide = showTan || showCot || (m === "train" && !bounded(tr.f));   // в тренировке — сразу, чтобы не прыгало после проверки
+    E = wide ? 2.13 : m === "eq" ? 1.68 : m === "deg" ? 1.8 : 1.5; A = E - 0.08;
+    svg.setAttribute("viewBox", `${C0 - E * R} ${C0 - E * R} ${2 * E * R} ${2 * E * R}`);
+    const skip = pts.map(p => [p.t, 0.2]);   // [угол, ширина зоны без табличных подписей]
+    if (m === "deg" && dq.checked) skip.push([dq.deg * PI / 180, 0.45]);
+
+    drawBase(showTan, showCot, state.lbl && (m !== "deg" || dq.checked), skip);
+    if (m === "circle") drawAngle(state.deg, true);
+    if (eqF) drawEq(eqF, eqA, pts, m === "eq" && state.range, m === "eq");
+    if (m === "deg" && dq.checked) {
+      drawAngle(dq.deg, false);
+      outside(dq.deg * PI / 180, `${degText(dq.deg)} = ${piText(rat(dq.deg, 180))}`, 14, { fill: C("--accent"), "font-weight": 700, "font-size": 17 });
+    }
+    if (m === "train") drawTrainPoints();
+    svg.setAttribute("class", "plot " + (m === "circle" ? "drag" : m === "train" && tr.stage === 1 ? "pick static" : "static"));
+  }
+
+  // ---------- Мышь и палец ----------
+  function toSvg(evt) {
+    const pt = svg.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    return pt.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  let dragging = false;
+  function dragTo(evt) {
+    const p = toSvg(evt);
+    const raw = Math.atan2(C0 - p.y, p.x - C0) * 180 / PI;
+    // из всех углов с этим направлением берём ближайший к текущему — так точка «помнит» обороты
+    const d = snapDeg(raw + 360 * Math.round((state.deg - raw) / 360));
+    if (d !== state.deg) setDeg(d);
+  }
+  svg.addEventListener("pointerdown", evt => {
+    if (state.mode === "circle") {
+      dragging = true; evt.preventDefault();
+      svg.setPointerCapture(evt.pointerId);
+      dragTo(evt);
+    } else if (state.mode === "train" && tr.stage === 1) {
+      const p = toSvg(evt), dx = (p.x - C0) / R, dy = (C0 - p.y) / R, r = Math.hypot(dx, dy);
+      if (r < 0.45 || r > 1.6) return;
+      const ang = (Math.atan2(dy, dx) * 180 / PI + 360) % 360;
+      const best = TABLE.findIndex(d => Math.abs(((d - ang + 540) % 360) - 180) < 7.5);   // табличные углы — не ближе 15° друг к другу
+      if (best < 0) return;
+      tr.sel.has(best) ? tr.sel.delete(best) : tr.sel.add(best);
+      draw();
+    }
+  });
+  svg.addEventListener("pointermove", evt => { if (dragging) dragTo(evt); });
+  const endDrag = () => (dragging = false);
+  svg.addEventListener("pointerup", endDrag);
+  svg.addEventListener("pointercancel", endDrag);
+
+  // ---------- Тексты над моделью ----------
+  function quarter(deg) {
+    const d = ((deg % 360) + 360) % 360;
+    let s = d % 90 === 0 ? "точка на оси" : ["I", "II", "III", "IV"][Math.floor(d / 90)] + " четверть";
+    if (d !== deg) s += ` · та же точка, что и ${degText(d)}`;
+    return s;
+  }
+  function circleTexts() {
+    const r = rat(state.deg, 180), t = state.deg * PI / 180;
+    $("formula").innerHTML = `α = ${degText(state.deg)} = ${piHTML(r)}`;
+    sDeg.hint(`${piHTML(r)} · ${quarter(state.deg)}`);
+    if (!state.val) {
+      $("vals").innerHTML = `<span class="hid">Значения скрыты — предскажите их, потом включите «значения».</span>`;
+    } else {
+      const no = "не существует";
+      const tg = FN.tg(t), ctg = FN.ctg(t);
+      $("vals").innerHTML =
+        `<span class="c-sin">sin α = ${valueHTML(Math.sin(t))}</span>` +
+        `<span class="c-cos">cos α = ${valueHTML(Math.cos(t))}</span>` +
+        `<span class="c-tg">tg α ${isNaN(tg) ? "— " + no : "= " + valueHTML(tg)}</span>` +
+        `<span class="c-ctg">ctg α ${isNaN(ctg) ? "— " + no : "= " + valueHTML(ctg)}</span>`;
+    }
+    if (state.val) $("legend").innerHTML = `<span class="c-cos">cos α</span><span class="c-sin">sin α</span>` +
+      (state.tan ? `<span class="c-tg">tg α</span>` : "") + (state.cot ? `<span class="c-ctg">ctg α</span>` : "");
+  }
+  function eqTexts() {
+    const a = aInfo(state.a), f = state.f;
+    $("formula").innerHTML = `${f} x = ${a.html}`;
+    let html = eqAnswerHTML(f, a);
+    const m = mainRat(f, a.key);
+    if (f === "sin" && eqPoints(f, a).length === 2 && a.v !== 0)
+      html += `<div class="alt">x = arcsin a + 2πn&ensp;или&ensp;x = π ${MINUS} arcsin a + 2πn` +
+        (m ? `, где arcsin a = ${piHTML(m)}` : "") + `</div>`;
+    if (bounded(f) && Math.abs(a.v) > 1)
+      html += `<div class="note">|${f} x| ≤ 1, а |a| &gt; 1 — прямая не пересекает окружность.</div>`;
+    $("answer").innerHTML = html;
+    sAOut.textContent = a.text;
+    const R_TEXT = { sin: "[−π/2; π/2]", cos: "[0; π]", tg: "(−π/2; π/2)", ctg: "(0; π)" };
+    $("rangeLbl").textContent = `где лежит ${ARC[f]} a: ${R_TEXT[f]}`;
+    $("legend").innerHTML = `<span class="c-sin">${{ sin: "прямая y = a", cos: "прямая x = a", tg: "прямая через (1; a)", ctg: "прямая через (a; 1)" }[f]}</span>` +
+      `<span class="c-cos">решения</span>`;
+  }
+  function degTexts() {
+    const r = rat(dq.deg, 180);
+    const what = dq.dir === "d2r" ? degText(dq.deg) : piHTML(r);
+    $("degQ").innerHTML = `Переведите в ${dq.dir === "d2r" ? "радианы" : "градусы"}: <span class="math">${what}</span>`;
+    $("formula").innerHTML = dq.checked ? `${degText(dq.deg)} = ${piHTML(r)}` : `${what} = ?`;
+    $("degScore").textContent = degScore.total ? `Верно: ${degScore.right} из ${degScore.total}` : "";
+  }
+  function trainTexts() {
+    const eq = `${tr.f} x = ${tok(tr.key).html}`;
+    $("formula").innerHTML = eq;
+    $("trQ").innerHTML = `<span class="math">${eq}</span>`;
+    $("trStep").textContent = tr.stage === 1
+      ? "Шаг 1. Нажмите на окружности все точки-решения (повторное нажатие снимает отметку). Если решений нет — сразу «Проверить точки»."
+      : "Шаг 2. Выберите ответ.";
+    $("trCheck").hidden = tr.stage !== 1;
+    const box = $("trOpts");
+    box.innerHTML = "";
+    if (tr.stage > 1) tr.options.forEach((F, i) => {
+      const b = document.createElement("button");
+      b.className = "btn opt"; b.innerHTML = answerHTML(F);
+      if (tr.stage === 3) {
+        b.disabled = true;
+        if (F === tr.correct) b.classList.add("right");
+        else if (i === tr.chosen) b.classList.add("wrong");
+      }
+      b.addEventListener("click", () => chooseOption(i));
+      box.appendChild(b);
+    });
+    $("trScore").textContent = trScore.total ? `Решено верно: ${trScore.right} из ${trScore.total}` : "";
+  }
+
+  // ---------- Обновление ----------
+  function update() {
+    const m = state.mode;
+    const press = (box, attr, v) => document.querySelectorAll(`#${box} .chip`).forEach(b => b.setAttribute("aria-pressed", b.dataset[attr] === v));
+    press("modes", "m", m); press("fchips", "f", state.f); press("achips", "a", state.a);
+    press("unitChips", "u", state.unit); press("dirChips", "d", state.dir);
+    document.querySelectorAll("[data-modes]").forEach(c => (c.hidden = c.dataset.modes !== m));
+    $("vals").innerHTML = ""; $("answer").innerHTML = ""; $("legend").innerHTML = "";
+    if (m === "circle") circleTexts();
+    if (m === "eq") eqTexts();
+    if (m === "deg") degTexts();
+    if (m === "train") trainTexts();
+    urlState.set({
+      m: m === "circle" ? null : m,
+      t: m === "circle" ? state.deg : null,
+      f: m === "eq" ? state.f : null, a: m === "eq" ? state.a : null,
+      d: m === "deg" && state.dir !== "mix" ? state.dir : null,
+      tan: state.tan ? 1 : null, cot: state.cot ? 1 : null,
+      lbl: state.lbl ? null : 0, val: state.val ? null : 0,
+      u: state.unit === "deg" ? "deg" : null, r: state.range ? null : 0,
+    });
+    draw();
+  }
+
+  syncA();
+  if (state.mode === "deg") newDeg();
+  if (state.mode === "train") newTrain();
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", draw);
+  update();
+})();
+</script>
+</body>
+</html>

@@ -57,5 +57,15 @@ window.Lab = (function () {
     };
   }
 
-  return { fmt, urlState, slider, MINUS };
+  // Кнопка «Скопировать ссылку»: копирует адрес с текущими настройками (?f=…&p=…)
+  function copyLink(button) {
+    const label = button.textContent;
+    button.addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(location.href); button.textContent = "Скопировано ✓"; }
+      catch (e) { button.textContent = "Скопируйте из адресной строки"; }
+      setTimeout(() => (button.textContent = label), 1800);
+    });
+  }
+
+  return { fmt, urlState, slider, copyLink, MINUS };
 })();

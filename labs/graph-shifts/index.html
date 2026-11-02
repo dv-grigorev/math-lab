@@ -6,9 +6,6 @@
 <title>Сдвиги графиков — Математическая лаборатория</title>
 <link rel="stylesheet" href="../../shared/style.css">
 <style>
-  .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; font-size: .8em; line-height: 1.15; }
-  .frac > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 4px; }
-  .frac > span:last-child { padding: 0 4px; }
   .sqrt { white-space: nowrap; }
   .sqrt > span { border-top: 1.5px solid currentColor; padding: 0 3px; }
   .formula sup { font-size: .62em; }
@@ -154,12 +151,7 @@
   document.getElementById("reset").addEventListener("click", () => {
     state.p = 0; state.q = 0; sP.set(0); sQ.set(0); update();
   });
-  const copyBtn = document.getElementById("copy");
-  copyBtn.addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText(location.href); copyBtn.textContent = "Скопировано ✓"; }
-    catch (e) { copyBtn.textContent = "Скопируйте из адресной строки"; }
-    setTimeout(() => (copyBtn.textContent = "Скопировать ссылку"), 1800);
-  });
+  Lab.copyLink(document.getElementById("copy"));
 
   // ---------- Тексты ----------
   const num = (v, cls) => `<span class="${cls}">${fmt(Math.abs(v))}</span>`;
