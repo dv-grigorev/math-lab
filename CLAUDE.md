@@ -32,6 +32,8 @@
   тренажёры используют его классы, а не придумывают свои. Там же: `.frac`
   (дробь `<span class="frac"><span>5π</span><span>6</span></span>`), `.math` и
   `var(--font-math)` — шрифт формул, `.plot.static` — модель не мешает прокрутке.
+  Ещё: тренировка (`.question`, `.ans-row`, `.keys`, `.status`, `.opts`/`.opt`), шаги разбора `.steps`,
+  вкладки `.tabs`, заглушка вместо модели `.hidden-stage`, подпись к задаче `.src-note`. `Lab.frac(верх, низ)` — дробь в HTML.
 - `shared/ui.js` — общие функции: `Lab.slider()`, `Lab.urlState`,
   `Lab.fmt()`, `Lab.copyLink(кнопка)` («Скопировать ссылку»).
 - `labs/<slug>/index.html` — тренажёр. `labs/<slug>/spec.md` — ТЗ от учителя.
@@ -120,6 +122,19 @@
 - Ответ к sin x = a — двумя сериями: x = arcsin a + 2πn или x = π − arcsin a + 2πn
   (так просит учитель, без (−1)ⁿ).
 - `tests/test_trig_circle.py` сверяет все ответы с перебором корней.
+
+## Тренажёр «Тригонометрические выражения» (labs/trig-expr)
+- ТЗ — `labs/trig-expr/spec.md`. Подтемы — `topics/double.js`, `reduction.js`, `values.js`, `find.js`,
+  `mixed.js` (`TE.topics.push({ theory, tasks, examples, generators })`); страница — `app.js`, стили — `te.css`.
+  У «Смешанных» `theory: []` — вкладка «Теория» скрыта, сцена по умолчанию — `scene` подтемы.
+- `te.js` (`window.TE`) — точные числа n/d·√r (ответы без десятичных), разбор ввода ученика,
+  мелочи для генераторов (`rad`, `bounded`, `sgnTxt`, `int`, `randSign`, `randUnit`) — не дублировать их в подтемах,
+  правило лошади `reduce`, значение табличного угла любой величины с шагами `valueOf`
+  (чётность → периоды → приведение → таблица), значения по одной функции `solveFrom`, генератор угла `given`.
+- Сцена (`scene`) задаёт модель: `double` (deg — только табличные, unit), `reduction` (f, k, s, deg),
+  `find` (gf, v, q), `angle` (deg до ±1440°, unit), `hide`.
+- `tests/test_trig_expr.py`: 30 задач каждого генератора против численного счёта, правило лошади,
+  `valueOf` для всех табличных углов до ±1440°, проверки разборов (`checks`), прохождение тренировки.
 
 ## Ветки и публикация
 - `main` — опубликованный сайт (https://dv-grigorev.github.io/math-lab/).
