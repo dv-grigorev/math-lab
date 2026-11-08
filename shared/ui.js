@@ -67,5 +67,8 @@ window.Lab = (function () {
     });
   }
 
-  return { fmt, urlState, slider, copyLink, MINUS };
+  // Дробь для HTML: Lab.frac("5π", 6) → <span class="frac">…</span> (стиль .frac в style.css)
+  const frac = (top, bottom) => `<span class="frac"><span>${top}</span><span>${bottom}</span></span>`;
+
+  return { fmt, urlState, slider, copyLink, frac, MINUS };
 })();

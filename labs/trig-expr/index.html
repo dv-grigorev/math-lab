@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тригонометрические выражения — Математическая лаборатория</title>
+<link rel="stylesheet" href="../../shared/style.css">
+<link rel="stylesheet" href="te.css">
+</head>
+<body>
+<header class="lab-header">
+  <a class="back" href="../../index.html">← Все тренажёры</a>
+  <h1>Тригонометрические выражения</h1>
+  <p>Формулы двойного угла и приведения, значения выражений, значения функций по одной известной и смешанные задания — с моделью на окружности.</p>
+</header>
+
+<main class="te">
+  <div class="te-nav">
+    <div class="chips" id="topics" role="group" aria-label="Подтема"></div>
+    <div class="chips tabs" id="tabs" role="group" aria-label="Раздел">
+      <button class="chip" data-tab="theory">Теория</button>
+      <button class="chip" data-tab="examples">Разборы</button>
+      <button class="chip" data-tab="practice">Тренировка</button>
+    </div>
+  </div>
+
+  <div class="te-main">
+    <section class="te-text" id="text"></section>
+
+    <section class="te-stage">
+      <div class="card" id="stageCard">
+        <div class="formula" id="formula" aria-live="polite"></div>
+        <svg class="plot static" id="plot" role="img" aria-label="Единичная окружность"></svg>
+        <div class="te-vals" id="vals"></div>
+
+        <div class="ctl" data-model="double">
+          <div class="ctl-row"><span>углы в</span><div class="chips" id="dU" role="group" aria-label="Единицы углов"></div></div>
+          <div id="dSlider"></div>
+        </div>
+        <div class="ctl" data-model="angle">
+          <div class="ctl-row"><span>углы в</span><div class="chips" id="aU" role="group" aria-label="Единицы углов"></div></div>
+          <div id="aSlider"></div>
+        </div>
+        <div class="ctl" data-model="reduction">
+          <div class="ctl-row"><span>функция</span><div class="chips" id="rF" role="group" aria-label="Функция"></div></div>
+          <div class="ctl-row"><span>угол K</span><div class="chips" id="rK" role="group" aria-label="Угол K"></div></div>
+          <div class="ctl-row"><span>аргумент</span><div class="chips" id="rS" role="group" aria-label="Плюс или минус α"></div></div>
+          <div id="rSlider"></div>
+        </div>
+        <div class="ctl" data-model="find">
+          <div class="ctl-row"><span>дано</span><div class="chips" id="fF" role="group" aria-label="Известная функция"></div></div>
+          <div class="ctl-row"><span>модуль</span><div class="chips" id="fV" role="group" aria-label="Модуль значения"></div></div>
+          <div class="ctl-row"><span>четверть</span><div class="chips" id="fQ" role="group" aria-label="Четверть"></div></div>
+        </div>
+
+        <div class="toggles" style="margin-top:12px">
+          <label><input type="checkbox" id="tHide"> скрыть результат (сначала предскажите)</label>
+        </div>
+        <div class="btn-row" style="margin-top:10px">
+          <button class="btn" id="reset">Сбросить</button>
+          <button class="btn" id="copy">Скопировать ссылку</button>
+        </div>
+      </div>
+      <div class="card hidden-stage" id="stageHidden" hidden>
+        Модель откроется после ответа — сначала решите сами.
+      </div>
+    </section>
+  </div>
+</main>
+
+<script src="../../shared/ui.js"></script>
+<script src="te.js"></script>
+<script src="topics/double.js"></script>
+<script src="topics/reduction.js"></script>
+<script src="topics/values.js"></script>
+<script src="topics/find.js"></script>
+<script src="topics/mixed.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

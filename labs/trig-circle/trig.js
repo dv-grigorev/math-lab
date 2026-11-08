@@ -2,7 +2,7 @@
 // (tests/test_trig_circle.py). Угол-дробь [n, d] означает nπ/d. Табличные числа — ключи:
 // "1/2", "-s3/2" (−√3/2), "s3/3" (√3/3) и т. д.
 window.TC = (function () {
-  const { fmt, MINUS } = Lab;
+  const { fmt, MINUS, frac: fracHTML } = Lab;
   const PI = Math.PI;
 
   // ---------- Дроби с π ----------
@@ -14,7 +14,6 @@ window.TC = (function () {
   const rEq = (a, b) => a[0] === b[0] && a[1] === b[1];
   const HALF = [1, 2], ONE = [1, 1];
 
-  const fracHTML = (top, bottom) => `<span class="frac"><span>${top}</span><span>${bottom}</span></span>`;
   function piParts(r) { const n = Math.abs(r[0]); return { sign: r[0] < 0 ? MINUS : "", top: n === 1 ? "π" : n + "π", d: r[1] }; }
   function piText(r) { if (r[0] === 0) return "0"; const p = piParts(r); return p.sign + p.top + (p.d === 1 ? "" : "/" + p.d); }
   function piHTML(r) { if (r[0] === 0) return "0"; const p = piParts(r); return p.sign + (p.d === 1 ? p.top : fracHTML(p.top, p.d)); }

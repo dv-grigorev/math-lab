@@ -1,0 +1,54 @@
+/* Тренажёр «Тригонометрические выражения»: текст (теория, разборы, тренировка) слева, модель справа. */
+svg text { font-family: var(--font); }
+
+.te { max-width: 1200px; margin: 0 auto; padding: 12px 16px 40px; display: grid; gap: 16px; }
+.te-nav { display: grid; gap: 10px; }
+.te-main { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.te-text { display: grid; gap: 14px; min-width: 0; }
+.te-text > * { min-width: 0; }   /* длинная формула прокручивается внутри карточки, а не растягивает колонку */
+.te-text .card > *:first-child { margin-top: 0; }
+.te-text .card > *:last-child { margin-bottom: 0; }
+.te-text p, .te-text li { line-height: 1.6; }
+.te-text ul, .te-text ol { padding-left: 22px; }
+.te-stage { position: sticky; top: 8px; display: grid; gap: 10px; min-width: 0; }
+.te-stage .plot { max-height: calc(100vh - 430px); min-height: 260px; }
+/* телефон: модель сверху (в тренировке — под задачей) */
+@media (max-width: 860px) {
+  .te-main { grid-template-columns: minmax(0, 1fr); }
+  .te-stage { order: -1; position: static; }
+  .te[data-tab="practice"] .te-stage { order: 0; }
+  .te-stage .plot { max-height: 46vh; min-height: 0; }
+}
+
+.sec.active { border-color: var(--accent); }
+.sec h3, .ex h3 { margin: 0 0 8px; font-size: 18px; }
+.sec .btn { margin-top: 4px; }
+.math, .fbox, .fline, .te-vals, .tbl { font-family: var(--font-math); }
+.math { font-size: 1.08em; }
+.fbox { font-size: 19px; background: var(--accent-soft); border-radius: 10px; padding: 6px 14px; margin: 8px 0; overflow-x: auto; }
+.fbox p { margin: 6px 0; white-space: nowrap; }
+.fline { font-size: 18px; white-space: nowrap; overflow-x: auto; margin: 6px 0; }
+.tbl-wrap { overflow-x: auto; margin: 8px 0; }
+.tbl { border-collapse: collapse; font-size: 17px; }
+.tbl th, .tbl td { border: 1px solid var(--line); padding: 4px 10px; text-align: center; white-space: nowrap; }
+.tbl th { font-weight: 600; }
+.tasks li .btn { margin-top: 4px; padding: 4px 10px; font-size: 14px; }
+
+/* модель */
+.te-vals { display: grid; gap: 2px; justify-items: center; text-align: center; font-size: 19px; }
+.te-vals .note { font-family: var(--font); font-size: 14px; color: var(--muted); }
+.te-vals .trap { font-size: 16px; color: var(--muted); }
+.rule { font-family: var(--font); font-size: 15px; text-align: left; margin: 6px 0 0; padding-left: 22px; justify-self: stretch; }
+.ctl { display: grid; gap: 8px; margin-top: 10px; }
+.ctl[hidden] { display: none; }
+.te-vals .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 22px; }
+.te-vals .row > span { white-space: nowrap; }
+.ctl-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; }
+.ctl-row > span { color: var(--muted); min-width: 72px; }
+.c-a { color: var(--accent); } .c-b { color: var(--warm); }
+
+/* тренировка */
+.task-q { font-size: 17px; margin: 6px 0 10px; }
+.task-q .math { font-size: 20px; }
+.score { font-size: 14px; color: var(--muted); margin: 8px 0 0; }
+.opt .frac, .te-vals .frac, .fbox .frac, .fline .frac, .tbl .frac, .math .frac { font-size: .78em; }
